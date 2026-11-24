@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="mist">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" id="metaThemeColor" content="#edf3f8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>HONE - 英単語学習</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./assets/icon-192.png?v=2" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body data-theme="mist" data-font="sans" data-size="md">
+
+  <!-- ==================== 待機画面（スプラッシュ） ==================== -->
+  <div id="splashScreen" class="fullscreen-overlay">
+    <div class="splash-card">
+      <h1 class="splash-logo">HONE</h1>
+      <div id="splashSpinner" class="spinner"></div>
+      <p id="splashStatus" class="splash-status">読み込み中...</p>
+      <button id="btnSplashStart" class="primary-btn splash-start-btn hidden" type="button">
+        タップしてスタート
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== ログイン・新規登録ゲート ==================== -->
+  <div id="authGate" class="fullscreen-overlay hidden">
+    <div class="glass-card gate-card">
+      <div class="gate-head">
+        <img src="./assets/icon-192.png" alt="HONE" class="gate-icon" />
+        <div>
+          <h2 class="gate-title">HONE</h2>
+          <p class="gate-sub">ログインIDでクラウド同期・対戦・フレンド共有</p>
+        </div>
+      </div>
+
+      <div class="gate-form">
+        <label class="filter-label" for="gateUsernameInput">ログインID（半角英数字 3〜20文字）</label>
+        <input
+          type="text"
+          id="gateUsernameInput"
+          class="text-input"
+          autocomplete="username"
+          placeholder="例：taro_01（または登録メールアドレス）"
+        />
+
+        <label class="filter-label" for="gatePasswordInput">パスワード（6文字以上）</label>
+        <input
+          type="password"
+          id="gatePasswordInput"
+          class="text-input"
+          autocomplete="current-password"
+          placeholder="6文字以上"
+        />
+
+        <label class="filter-label" for="gateRecoveryEmailInput">再設定用メールアドレス（任意・新規登録時）</label>
+        <input
+          type="email"
+          id="gateRecoveryEmailInput"
+          class="text-input"
+          autocomplete="email"
+          placeholder="パスワードを忘れたときの再設定用（空欄でも可）"
+        />
+
+        <div class="gate-actions">
+          <button id="btnGateLogin" class="primary-btn" type="button">ログイン</button>
+          <button id="btnGateSignup" class="sub-btn" type="button">新規登録</button>
+        </div>
+
+        <button id="btnGateResetPw" class="text-btn" type="button" style="align-self:center;margin-top:2px;">
+          パスワードを忘れた場合（再設定メール送信）
+        </button>
+        <p id="authGateError" class="gate-error"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 初回ニックネーム設定モーダル ==================== -->
+  <div id="usernameModal" class="modal-backdrop hidden">
+    <div class="glass-card modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">ニックネームを設定</h3>
+          <p class="modal-sub">ホーム画面やフレンド・対戦で表示される名前です（あとから変更できます）</p>
+        </div>
+      </div>
+      <div class="gate-form">
+        <input
+          type="text"
+          id="initialUsernameInput"
+          class="text-input"
+          maxlength="16"
+          placeholder="ニックネーム（1〜16文字）"
+        />
+        <p id="usernameModalError" class="gate-error"></p>
+        <button id="btnSaveInitialUsername" class="primary-btn full-btn" type="button">はじめる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 再設定用メアド登録モーダル ==================== -->
+  <div id="recoveryPromptModal" class="modal-backdrop hidden">
+    <div class="glass-card modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">再設定用メールアドレスの登録</h3>
+          <p class="modal-sub">登録しておくと、パスワードを忘れたときに再設定できます。</p>
+        </div>
+      </div>
+      <div class="gate-form">
+        <input type="email" id="modalRecoveryEmailInput" class="text-input" placeholder="メールアドレス" />
+        <input type="password" id="modalRecoveryPwInput" class="text-input" placeholder="現在のパスワード" />
+        <p id="recoveryModalError" class="gate-error"></p>
+        <button id="btnLinkRecoveryEmail" class="primary-btn full-btn" type="button">確認メールを送信</button>
+        <div class="gate-actions">
+          <button id="btnSkipRecoveryOnce" class="sub-btn" type="button">あとで</button>
+          <button id="btnDismissRecoveryForever" class="text-btn" type="button">今後は表示しない</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== フレンド進捗詳細モーダル ==================== -->
+  <div id="friendDetailModal" class="modal-backdrop hidden">
+    <div class="glass-card modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="fdName" class="modal-title">---</h3>
+          <p id="fdFriendId" class="modal-sub">HN-XXXXXX</p>
+        </div>
+        <button id="btnCloseFriendModal" class="text-btn" type="button">閉じる</button>
+      </div>
+
+      <div class="stats-mini-grid">
+        <div class="stat-pill">
+          <span class="sub-label">今日の学習</span>
+          <strong id="fdTodayCount">0 語</strong>
+        </div>
+        <div class="stat-pill">
+          <span class="sub-label">連続学習</span>
+          <strong id="fdStreakDays">0 日</strong>
+        </div>
+      </div>
+
+      <div class="donut-wrap">
+        <svg id="friendDonutSvg" class="donut-svg" viewBox="0 0 120 120"></svg>
+        <div class="donut-center">
+          <span class="donut-label">習得率</span>
+          <strong id="friendMasteryPct" class="donut-pct">0%</strong>
+        </div>
+      </div>
+      <div id="friendLegend" class="legend-row"></div>
+
+      <div>
+        <p class="filter-label" style="margin-bottom:8px;">Part別 進捗</p>
+        <div id="friendUnitBars" class="unit-bars"></div>
+      </div>
+
+      <button id="btnRemoveFriend" class="sub-btn full-btn" type="button" style="color:var(--lv-1);">
+        フレンドを解除
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== 全画面聞き流しオーバーレイ ==================== -->
+  <div id="listenOverlay" class="listen-overlay hidden">
+    <div class="listen-top">
+      <span id="listenCounter" class="fc-no">1 / 100</span>
+      <button id="btnExitListen" class="sub-btn" type="button">終了</button>
+    </div>
+
+    <div class="thin-progress-track" style="max-width:500px;width:100%;margin:8px auto 0;">
+      <div id="listenProgressBar" class="thin-progress-fill" style="width:0%;"></div>
+    </div>
+
+    <div class="glass-card listen-card">
+      <div class="fc-top-bar" style="width:100%;">
+        <span id="listenNo" class="fc-no">No. 1</span>
+        <span id="listenPhaseBadge" class="pos-badge">英語</span>
+      </div>
+
+      <span id="listenPos" class="pos-badge">動</span>
+      <div id="listenJa" class="listen-ja">達成する</div>
+
+      <div id="listenEnWrap" class="listen-en-wrap">
+        <div id="listenEn" class="listen-en">achieve</div>
+        <div id="listenPhonetic" class="listen-phonetic"></div>
+      </div>
+
+      <div id="listenExample" class="listen-example"></div>
+
+      <div class="listen-rate-row">
+        <button class="rate-btn lv-1-btn" type="button" data-listen-rate="1">苦手</button>
+        <button class="rate-btn lv-2-btn" type="button" data-listen-rate="2">あやしい</button>
+        <button class="rate-btn lv-3-btn" type="button" data-listen-rate="3">習得済み</button>
+      </div>
+    </div>
+
+    <div class="listen-controls">
+      <div class="listen-main-btns">
+        <button id="btnListenPrev" class="sub-btn" type="button">前へ</button>
+        <button id="btnListenPlayPause" class="primary-btn" type="button">一時停止</button>
+        <button id="btnListenNext" class="sub-btn" type="button">次へ</button>
+      </div>
+      <div class="listen-sub-btns">
+        <button id="btnListenSpeedQuick" class="sub-btn" type="button">速度: 1.0x</button>
+        <button id="btnListenLoopQuick" class="sub-btn" type="button">ループ: ON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== メインシェル ==================== -->
+  <div class="app-shell">
+    <header class="app-header">
+      <button id="btnBack" class="icon-btn is-hidden" type="button" aria-label="戻る">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <h1 id="headerTitle" class="app-title">HONE</h1>
+      <button id="btnSettings" class="icon-btn" type="button" aria-label="設定">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- ==================== 1. ホーム画面 ==================== -->
+    <section id="view-home" class="view active">
+      <div class="glass-card hero-card">
+        <div class="hero-head">
+          <div>
+            <span id="homeUserGreeting" class="sub-label">サインイン待ち</span>
+            <h2 class="section-heading" style="margin:2px 0 0;">目標範囲の習得率</h2>
+          </div>
+          <span id="homeRangeLabel" class="range-pill">No. 1 〜 100</span>
+        </div>
+
+        <div class="donut-wrap">
+          <svg id="homeDonutSvg" class="donut-svg" viewBox="0 0 120 120"></svg>
+          <div class="donut-center">
+            <span class="donut-label">習得済み</span>
+            <strong id="homeMasteryPct" class="donut-pct">0%</strong>
+          </div>
+        </div>
+        <div id="homeLegend" class="legend-row"></div>
+
+        <div class="stats-mini-grid">
+          <div class="stat-pill">
+            <span class="sub-label">今日の学習</span>
+            <strong id="homeTodayCount">0 語</strong>
+          </div>
+          <div class="stat-pill">
+            <span class="sub-label">連続学習</span>
+            <strong id="homeStreakDays">0 日</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-grid">
+        <button class="glass-card action-tile" type="button" data-jump="study" data-mode="flashcard">
+          <span class="tile-title">フラッシュカード</span>
+          <span class="tile-desc">目標範囲をテンポよく周回</span>
+        </button>
+        <button class="glass-card action-tile" type="button" data-jump="study" data-mode="quiz">
+          <span class="tile-title">小テスト</span>
+          <span class="tile-desc">紙・セルフ採点で定着確認</span>
+        </button>
+        <button class="glass-card action-tile" type="button" data-jump="vocab" data-filter="weak">
+          <span class="tile-title">苦手を復習</span>
+          <span class="tile-desc">苦手・あやしい単語を一覧表示</span>
+        </button>
+        <button class="glass-card action-tile" type="button" data-jump="vocab" data-filter="all">
+          <span class="tile-title">単語帳を開く</span>
+          <span class="tile-desc">赤シート・聞き流し・例文確認</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== 2. 単語帳画面 ==================== -->
+    <section id="view-vocab" class="view">
+      <div class="glass-card filter-card">
+        <div class="filter-top-row">
+          <div class="range-inputs">
+            <span class="filter-label">範囲</span>
+            <input type="number" id="vocabMin" class="num-input" min="1" value="1" />
+            <span>〜</span>
+            <input type="number" id="vocabMax" class="num-input" min="1" value="100" />
+          </div>
+          <span id="vocabCountBadge" class="range-pill">0語</span>
+        </div>
+
+        <div id="vocabLevelFilter" class="level-chips">
+          <button class="level-chip active" type="button" data-level="all">すべて</button>
+          <button class="level-chip" type="button" data-level="0">未学習</button>
+          <button class="level-chip" type="button" data-level="1">苦手</button>
+          <button class="level-chip" type="button" data-level="2">あやしい</button>
+          <button class="level-chip" type="button" data-level="3">習得済み</button>
+        </div>
+
+        <div class="vocab-listen-bar">
+          <div class="vocab-listen-opts">
+            <label class="filter-label" for="vocabListenSpeed">速度</label>
+            <select id="vocabListenSpeed" class="select-input">
+              <option value="0.8">0.8x</option>
+              <option value="1.0" selected>1.0x</option>
+              <option value="1.2">1.2x</option>
+            </select>
+
+            <label class="filter-label" for="vocabListenInterval">間隔</label>
+            <select id="vocabListenInterval" class="select-input">
+              <option value="900">0.9秒</option>
+              <option value="1400" selected>1.4秒</option>
+              <option value="2000">2.0秒</option>
+            </select>
+          </div>
+          <button id="btnStartVocabListen" class="primary-btn" type="button">
+            🎧 聞き流し再生
+          </button>
+        </div>
+      </div>
+
+      <div id="vocabList" class="vocab-list"></div>
+
+      <!-- 赤シート切替バー -->
+      <div id="floatingRedBar" class="floating-red-bar glass hidden">
+        <button id="toggleRedEn" class="red-toggle-btn" type="button">英 赤シート</button>
+        <button id="toggleRedJa" class="red-toggle-btn" type="button">日 赤シート</button>
+      </div>
+    </section>
+
+    <!-- ==================== 3. 学習画面 ==================== -->
+    <section id="view-study" class="view">
+      <div class="segmented cols-3 glass" id="studyModeSwitch">
+        <button class="seg-btn active" data-study-mode="flashcard" type="button">カード</button>
+        <button class="seg-btn" data-study-mode="quiz" type="button">小テスト</button>
+        <button class="seg-btn" data-study-mode="listen" type="button">聞き流し</button>
+      </div>
+
+      <!-- 出題設定パネル -->
+      <div id="studySetupPanel" class="glass-card study-setup">
+        <div class="setup-row">
+          <label class="filter-label">範囲</label>
+          <div class="range-inputs">
+            <input type="number" id="studyMin" class="num-input" min="1" value="1" />
+            <span>〜</span>
+            <input type="number" id="studyMax" class="num-input" min="1" value="100" />
+          </div>
+        </div>
+
+        <div class="setup-row">
+          <label class="filter-label" for="studyLevelSelect">対象レベル</label>
+          <select id="studyLevelSelect" class="select-input">
+            <option value="all" selected>すべて</option>
+            <option value="weak">未学習・苦手</option>
+            <option value="0">未学習のみ</option>
+            <option value="1">苦手のみ</option>
+            <option value="2">あやしいのみ</option>
+            <option value="3">習得済みのみ</option>
+          </select>
+        </div>
+
+        <div class="setup-row">
+          <label class="filter-label" for="studyOrderSelect">出題順</label>
+          <select id="studyOrderSelect" class="select-input">
+            <option value="seq" selected>番号順</option>
+            <option value="random">ランダム</option>
+          </select>
+        </div>
+
+        <!-- フラッシュカード設定 -->
+        <div id="fcOptions" class="setup-sub-group">
+          <div class="setup-row">
+            <label class="filter-label" for="fcFormatSelect">出題形式</label>
+            <select id="fcFormatSelect" class="select-input">
+              <option value="en-ja" selected>英 → 日</option>
+              <option value="ja-en">日 → 英</option>
+              <option value="example">例文穴埋め</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 小テスト設定 -->
+        <div id="quizOptions" class="setup-sub-group hidden">
+          <div class="setup-row">
+            <label class="filter-label" for="quizFormatSelect">出題形式</label>
+            <select id="quizFormatSelect" class="select-input">
+              <option value="en-ja" selected>英 → 日</option>
+              <option value="ja-en">日 → 英</option>
+              <option value="example">例文穴埋め</option>
+            </select>
+          </div>
+          <div class="setup-row">
+            <label class="filter-label" for="quizLayoutSelect">表示形式</label>
+            <select id="quizLayoutSelect" class="select-input">
+              <option value="single" selected>1問ずつ</option>
+              <option value="list">一覧（紙テスト向け）</option>
+            </select>
+          </div>
+          <div class="setup-row">
+            <label class="filter-label" for="quizLimitInput">出題数</label>
+            <input type="number" id="quizLimitInput" class="num-input" min="1" max="200" value="20" />
+          </div>
+        </div>
+
+        <!-- 聞き流し設定 -->
+        <div id="listenOptions" class="setup-sub-group hidden">
+          <div class="setup-row">
+            <label class="filter-label" for="listenSpeedSelect">速度</label>
+            <select id="listenSpeedSelect" class="select-input">
+              <option value="0.8">0.8x</option>
+              <option value="1.0" selected>1.0x</option>
+              <option value="1.2">1.2x</option>
+            </select>
+          </div>
+          <div class="setup-row">
+            <label class="filter-label" for="listenIntervalSelect">間隔</label>
+            <select id="listenIntervalSelect" class="select-input">
+              <option value="900">0.9秒</option>
+              <option value="1400" selected>1.4秒</option>
+              <option value="2000">2.0秒</option>
+            </select>
+          </div>
+          <div class="setup-row">
+            <label class="filter-label" for="listenLoopCheck">ループ再生</label>
+            <input type="checkbox" id="listenLoopCheck" checked />
+          </div>
+        </div>
+
+        <button id="btnStartStudy" class="primary-btn full-btn" type="button">スタート</button>
+      </div>
+
+      <!-- フラッシュカードステージ -->
+      <div id="flashcardStage" class="study-stage hidden">
+        <div class="stage-meta">
+          <span id="fcCounter">1 / 20</span>
+          <button id="btnExitFc" class="text-btn" type="button">終了</button>
+        </div>
+        <div class="thin-progress-track">
+          <div id="fcProgressBar" class="thin-progress-fill" style="width:0%;"></div>
+        </div>
+
+        <div id="flashcardBox" class="glass-card flashcard-face">
+          <!-- 表 -->
+          <div id="fcFront" class="fc-side">
+            <div class="fc-top-bar">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span id="fcDotFront" class="dot lv-0"></span>
+                <span id="fcNoFront" class="fc-no">No. 1</span>
+              </div>
+              <button id="fcFrontAudioBtn" class="audio-pill" type="button">🔊 発音</button>
+            </div>
+            <div id="fcWordFront" class="fc-word">achieve</div>
+            <p class="fc-hint">タップして答えを見る</p>
+          </div>
+
+          <!-- 裏 -->
+          <div id="fcBack" class="fc-side hidden">
+            <div class="fc-top-bar">
+              <span id="fcNoBack" class="fc-no">No. 1</span>
+              <button id="fcAudioBtn" class="audio-pill" type="button">🔊 発音</button>
+            </div>
+            <div class="fc-back-head">
+              <strong id="fcWordBack" class="fc-word-sm">achieve</strong>
+              <span id="fcPhoneticBack" class="sub-label"></span>
+            </div>
+            <div class="fc-meaning-row">
+              <span id="fcPosBack" class="pos-badge">動</span>
+              <span id="fcMeaningBack" class="fc-meaning">達成する</span>
+            </div>
+            <p id="fcNoteBack" class="fc-note"></p>
+            <div id="fcExampleBack" class="fc-example"></div>
+
+            <div class="rate-row">
+              <button class="rate-btn lv-1-btn" type="button" data-rate="1">苦手</button>
+              <button class="rate-btn lv-2-btn" type="button" data-rate="2">あやしい</button>
+              <button class="rate-btn lv-3-btn" type="button" data-rate="3">習得済み</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="fc-nav-row">
+          <button id="fcPrevBtn" class="sub-btn" type="button">前へ</button>
+          <button id="fcNextBtn" class="primary-btn" type="button">評価を選んで次へ</button>
+        </div>
+      </div>
+
+      <!-- 小テストステージ -->
+      <div id="quizStage" class="study-stage hidden">
+        <div class="stage-meta">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="quizMetaText">問題 1 / 20</span>
+            <span id="quizRetestBadge" class="pos-badge hidden">再テスト</span>
+          </div>
+          <button id="btnExitQuiz" class="text-btn" type="button">終了</button>
+        </div>
+        <div id="quizProgressWrap" class="thin-progress-track">
+          <div id="quizProgressBar" class="thin-progress-fill" style="width:0%;"></div>
+        </div>
+
+        <!-- 1問ずつ -->
+        <div id="quizSingleBox" class="glass-card quiz-card">
+          <div class="fc-top-bar">
+            <span id="qSingleNo" class="fc-no">No. 1</span>
+            <button id="qSingleAudio" class="audio-pill" type="button">🔊 発音</button>
+          </div>
+          <div id="qSinglePrompt" class="quiz-prompt">achieve</div>
+          <button id="qBtnReveal" class="primary-btn full-btn" type="button">答えを見る</button>
+
+          <div id="qSingleAnswerArea" class="quiz-answer-area hidden">
+            <div class="ql-answer">
+              <strong id="qSingleAnswerMain"></strong>
+              <div id="qSingleAnswerSub" style="font-size:0.84rem;opacity:0.82;margin-top:4px;"></div>
+            </div>
+            <div class="ql-ox">
+              <button id="qBtnWrong" class="ox-btn wrong" type="button">× できなかった</button>
+              <button id="qBtnCorrect" class="ox-btn correct" type="button">○ できた</button>
+            </div>
+            <div class="manual-override-wrap">
+              <button id="qManualToggleBtn" class="manual-toggle-btn" type="button">手動で評価を変更 ▾</button>
+              <div id="qManualPanel" class="manual-panel hidden">
+                <button class="rate-btn lv-1-btn" type="button" data-q-override="1">苦手</button>
+                <button class="rate-btn lv-2-btn" type="button" data-q-override="2">あやしい</button>
+                <button class="rate-btn lv-3-btn" type="button" data-q-override="3">習得済み</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 一覧形式 -->
+        <div id="quizListBox" class="hidden">
+          <div id="quizListToolbar" class="quiz-list-toolbar">
+            <button id="qListToggleAns" class="primary-btn" type="button">答えを表示して採点する</button>
+            <button id="qListFinishBtn" class="primary-btn hidden" type="button">採点を確定</button>
+          </div>
+          <div id="quizListItems" class="quiz-list-items"></div>
+        </div>
+
+        <!-- 結果 -->
+        <div id="quizResultBox" class="glass-card study-setup hidden" style="text-align:center;">
+          <h3 class="section-heading" style="margin:0;">テスト完了</h3>
+          <div id="quizResultScore" class="result-score">0 / 0 正解</div>
+          <p id="quizResultNote" class="setting-desc" style="margin:0;"></p>
+          <button id="qResultRetestBtn" class="sub-btn full-btn hidden" type="button">間違えた問題だけ再テスト</button>
+          <button id="qResultRetryBtn" class="primary-btn full-btn" type="button">設定に戻る</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 4. 対戦・フレンド画面 ==================== -->
+    <section id="view-battle" class="view">
+      <div class="segmented glass" id="battleSubSwitch">
+        <button class="seg-btn active" data-battle-tab="match" type="button">リアルタイム対戦</button>
+        <button class="seg-btn" data-battle-tab="friends" type="button">フレンド</button>
+      </div>
+
+      <!-- A. 合言葉リアルタイム対戦パネル -->
+      <div id="battleMatchPanel" class="battle-panel">
+        <div id="battleLobby" class="battle-stack">
+          <div class="glass-card study-setup">
+            <h3 class="card-title">合言葉ルームを作る</h3>
+            <div class="setup-row">
+              <label class="filter-label">範囲</label>
+              <div class="range-inputs">
+                <input type="number" id="battleMin" class="num-input" min="1" value="1" />
+                <span>〜</span>
+                <input type="number" id="battleMax" class="num-input" min="1" value="100" />
+              </div>
+            </div>
+            <div class="setup-row">
+              <label class="filter-label" for="battleCount">問題数</label>
+              <select id="battleCount" class="select-input">
+                <option value="10" selected>10問</option>
+                <option value="15">15問</option>
+                <option value="20">20問</option>
+              </select>
+            </div>
+            <div class="setup-row">
+              <label class="filter-label" for="battleFormat">出題形式</label>
+              <select id="battleFormat" class="select-input">
+                <option value="en-ja" selected>英 → 日（4択）</option>
+                <option value="ja-en">日 → 英（4択）</option>
+              </select>
+            </div>
+            <button id="btnCreateRoom" class="primary-btn full-btn" type="button">
+              ルームを作成して合言葉を発行
+            </button>
+          </div>
+
+          <div class="glass-card study-setup">
+            <h3 class="card-title">合言葉でルームに参加</h3>
+            <div class="inline-edit-row">
+              <input
+                type="text"
+                id="battleJoinCodeInput"
+                class="text-input"
+                maxlength="8"
+                placeholder="合言葉（例：A7K2M9）"
+                style="text-transform: uppercase;"
+              />
+              <button id="btnJoinRoom" class="primary-btn" type="button">参加</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 待機室 -->
+        <div id="battleWaitingRoom" class="glass-card study-setup hidden">
+          <div class="fc-top-bar">
+            <h3 class="card-title" style="margin:0;">対戦待機室</h3>
+            <button id="btnLeaveRoom" class="text-btn" type="button">退出</button>
+          </div>
+          <div class="room-code-box">
+            <span class="sub-label">合言葉</span>
+            <strong id="battleRoomCodeDisplay" class="room-code-text">------</strong>
+            <button id="btnCopyRoomCode" class="sub-btn" type="button">コピー</button>
+          </div>
+          <p id="battleRoomMeta" class="setting-desc" style="text-align:center;margin:0;"></p>
+          <div>
+            <p class="filter-label" style="margin-bottom:6px;">参加メンバー</p>
+            <div id="battlePlayersList" class="battle-players-list"></div>
+          </div>
+          <button id="btnStartBattleMatch" class="primary-btn full-btn hidden" type="button">
+            対戦スタート！
+          </button>
+          <p id="battleWaitHint" class="setting-desc" style="text-align:center;margin:0;">
+            ホストが対戦を開始するのを待っています...
+          </p>
+        </div>
+
+        <!-- 対戦中ステージ -->
+        <div id="battlePlayStage" class="study-stage hidden">
+          <div id="battleScoreboard" class="battle-scoreboard"></div>
+          <div class="stage-meta">
+            <span id="battleQCounter">1 / 10</span>
+            <span id="battleTimerText">10秒</span>
+          </div>
+          <div class="thin-progress-track">
+            <div id="battleTimerBar" class="thin-progress-fill" style="width: 100%;"></div>
+          </div>
+
+          <div class="glass-card battle-question-card">
+            <span id="battleQNo" class="fc-no">No. 1</span>
+            <div id="battlePrompt" class="quiz-prompt">achieve</div>
+            <div id="battleChoices" class="battle-choices"></div>
+          </div>
+        </div>
+
+        <!-- 対戦結果 -->
+        <div id="battleResultBox" class="glass-card study-setup hidden">
+          <h3 id="battleResultTitle" class="section-heading" style="text-align:center;">対戦終了！</h3>
+          <div id="battleResultList" class="battle-players-list"></div>
+          <button id="btnBattleBackLobby" class="primary-btn full-btn" type="button">ロビーに戻る</button>
+        </div>
+      </div>
+
+      <!-- B. フレンドパネル -->
+      <div id="battleFriendPanel" class="battle-panel hidden">
+        <div class="glass-card study-setup">
+          <h3 class="card-title">フレンド申請</h3>
+          <p class="setting-desc" style="margin-bottom:4px;">
+            相手のフレンドIDを入力して申請できます。
+          </p>
+          <div class="inline-edit-row">
+            <input
+              type="text"
+              id="friendAddInput"
+              class="text-input"
+              maxlength="12"
+              placeholder="相手のフレンドID（例：HN-A1B2C3）"
+              style="text-transform: uppercase;"
+            />
+            <button id="btnSendFriendReq" class="primary-btn" type="button">申請する</button>
+          </div>
+          <div class="room-code-box" style="margin-top:4px;">
+            <div>
+              <span class="sub-label">あなたのフレンドID</span>
+              <strong id="friendMyIdDisplay" class="room-code-text" style="font-size:1.15rem;display:block;">HN-XXXXXX</strong>
+            </div>
+            <button id="btnCopyMyFriendId" class="sub-btn" type="button">IDをコピー</button>
+          </div>
+        </div>
+
+        <div id="friendRequestsCard" class="glass-card study-setup hidden">
+          <h3 class="card-title">届いているフレンド申請</h3>
+          <div id="friendRequestsList" class="friend-list"></div>
+        </div>
+
+        <div class="glass-card study-setup">
+          <div class="fc-top-bar">
+            <h3 class="card-title" style="margin:0;">フレンド一覧</h3>
+            <button id="btnRefreshFriends" class="text-btn" type="button">更新</button>
+          </div>
+          <div id="friendList" class="friend-list">
+            <p class="setting-desc" style="text-align:center;margin:8px 0;">フレンドがまだいません</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 5. 進捗画面 ==================== -->
+    <section id="view-progress" class="view">
+      <div class="glass-card hero-card">
+        <div class="hero-head">
+          <h2 class="section-heading" style="margin:0;">全体の習熟度</h2>
+          <span id="progTotalCount" class="range-pill">全 0 語</span>
+        </div>
+
+        <div class="donut-wrap">
+          <svg id="progDonutSvg" class="donut-svg" viewBox="0 0 120 120"></svg>
+          <div class="donut-center">
+            <span class="donut-label">習得済み</span>
+            <strong id="progMasteryPct" class="donut-pct">0%</strong>
+          </div>
+        </div>
+        <div id="progLegend" class="legend-row"></div>
+
+        <div class="stats-mini-grid">
+          <div class="stat-pill">
+            <span class="sub-label">今日の学習</span>
+            <strong id="progTodayCount">0 語</strong>
+          </div>
+          <div class="stat-pill">
+            <span class="sub-label">連続学習</span>
+            <strong id="progStreakDays">0 日</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card study-setup">
+        <h3 class="card-title">Part別 進捗</h3>
+        <div id="unitBarsContainer" class="unit-bars"></div>
+      </div>
+    </section>
+
+    <!-- ==================== 6. 設定画面 ==================== -->
+    <section id="view-settings" class="view">
+      <div class="glass-card sync-banner">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="syncDot" class="sync-dot"></span>
+          <span id="syncStatusText" style="font-size:0.85rem;font-weight:600;">未ログイン</span>
+        </div>
+        <button id="btnManualSync" class="sub-btn" type="button">今すぐ同期</button>
+      </div>
+
+      <div class="glass-card study-setup">
+        <h3 class="card-title">アカウント</h3>
+        <div class="setup-row">
+          <span class="filter-label">ログインID</span>
+          <strong id="authCurrentLoginId">未ログイン</strong>
+        </div>
+        <div class="setup-row">
+          <span class="filter-label">フレンドID</span>
+          <strong id="authFriendId">---</strong>
+        </div>
+        <div class="setup-row">
+          <span class="filter-label">再設定用メール</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="authRecoveryStatus" class="sub-label">未登録</span>
+            <button id="btnOpenRecoveryModal" class="sub-btn" type="button" style="padding:5px 10px;font-size:0.78rem;">登録・変更</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label class="filter-label" for="setDisplayNameInput">ニックネーム（1〜16文字）</label>
+          <div class="inline-edit-row">
+            <input type="text" id="setDisplayNameInput" class="text-input" maxlength="16" placeholder="ニックネーム" />
+            <button id="btnUpdateDisplayName" class="primary-btn" type="button">保存</button>
+          </div>
+        </div>
+        <button id="btnLogout" class="sub-btn full-btn" type="button" style="color:var(--lv-1);">ログアウト</button>
+      </div>
+
+      <div class="glass-card study-setup">
+        <h3 class="card-title">学習・表示設定</h3>
+        <div class="setup-row">
+          <label class="filter-label">目標範囲</label>
+          <div class="range-inputs">
+            <input type="number" id="setGoalMin" class="num-input" min="1" value="1" />
+            <span>〜</span>
+            <input type="number" id="setGoalMax" class="num-input" min="1" value="100" />
+          </div>
+        </div>
+        <div class="setup-row">
+          <label class="filter-label" for="setVoiceAccent">発音アクセント</label>
+          <select id="setVoiceAccent" class="select-input">
+            <option value="en-US">アメリカ英語 (US)</option>
+            <option value="en-GB">イギリス英語 (UK)</option>
+          </select>
+        </div>
+        <div class="setup-row">
+          <label class="filter-label" for="setAutoAudio">カード自動発音</label>
+          <input type="checkbox" id="setAutoAudio" checked />
+        </div>
+        <div class="setup-row">
+          <label class="filter-label" for="setKeepPosOnRed">赤シート時に品詞を残す</label>
+          <input type="checkbox" id="setKeepPosOnRed" checked />
+        </div>
+        <div class="setup-row">
+          <label class="filter-label" for="setFontSize">文字サイズ</label>
+          <select id="setFontSize" class="select-input">
+            <option value="sm">小</option>
+            <option value="md" selected>標準</option>
+            <option value="lg">大</option>
+          </select>
+        </div>
+        <div class="setup-row">
+          <label class="filter-label" for="setFontFamily">フォント</label>
+          <select id="setFontFamily" class="select-input">
+            <option value="sans" selected>ゴシック</option>
+            <option value="serif">明朝</option>
+          </select>
+        </div>
+        <div class="setup-row">
+          <label class="filter-label" for="setTheme">テーマカラー</label>
+          <select id="setTheme" class="select-input">
+            <option value="mist" selected>Light Mist</option>
+            <option value="matte-blue">Matte Blue</option>
+            <option value="dark-slate">Dark Slate</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="glass-card study-setup">
+        <h3 class="card-title">単語データ（CSV手動読込）</h3>
+        <p class="setting-desc" style="margin:0;">ローカルのCSVファイルを読み込んで上書きできます。</p>
+        <input type="file" id="csvFileInput" accept=".csv,text/csv" class="text-input" />
+      </div>
+
+      <div class="glass-card study-setup">
+        <h3 class="card-title">フィードバック・誤植報告</h3>
+        <div class="setup-row">
+          <label class="filter-label" for="fbCategory">種別</label>
+          <select id="fbCategory" class="select-input">
+            <option value="typo">誤植・意味の修正</option>
+            <option value="feature">機能リクエスト</option>
+            <option value="bug">不具合報告</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <input type="text" id="fbWordNo" class="text-input" placeholder="関連する単語番号（任意・例：No.125）" />
+        <textarea id="fbMessage" class="text-input" rows="3" placeholder="内容を入力してください"></textarea>
+        <button id="btnSendFeedback" class="primary-btn full-btn" type="button">送信する</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ==================== 下部ナビゲーション（5タブ） ==================== -->
+  <nav class="bottom-nav glass" aria-label="メインナビゲーション">
+    <button class="nav-tab active" data-tab="home" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5L12 3l9 7.5"></path>
+        <path d="M5 9.5V20h14V9.5"></path>
+      </svg>
+      <span>ホーム</span>
+    </button>
+    <button class="nav-tab" data-tab="vocab" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+      </svg>
+      <span>単語帳</span>
+    </button>
+    <button class="nav-tab" data-tab="study" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+        <line x1="7" y1="10" x2="17" y2="10"></line>
+        <line x1="7" y1="14" x2="13" y2="14"></line>
+      </svg>
+      <span>学習</span>
+    </button>
+    <button class="nav-tab" data-tab="battle" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+      <span>交流</span>
+    </button>
+    <button class="nav-tab" data-tab="progress" type="button">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+      <span>進捗</span>
+    </button>
+  </nav>
+
+  <!-- ==================== トースト通知 ==================== -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

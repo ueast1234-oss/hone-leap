@@ -1,0 +1,24 @@
+{
+  "name": "HONE",
+  "short_name": "HONE",
+  "description": "アナログとデジタルを融合した英単語学習アプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#3d6280",
+  "theme_color": "#3d6280",
+  "icons": [
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
