@@ -3,8 +3,9 @@
   "short_name": "HONE",
   "description": "アナログとデジタルを融合した英単語学習アプリ",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#3d6280",
   "theme_color": "#3d6280",
   "icons": [

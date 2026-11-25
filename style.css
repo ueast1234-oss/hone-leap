@@ -1074,7 +1074,7 @@ html, body {
     --nav-h: 64px;
   }
 
-  .app-shell { padding: 16px 28px calc(var(--nav-h) + 64px); }
+  .app-shell { padding: 16px 28px calc(var(--nav-h) + 96px); }
   .app-header { padding: 8px 6px 14px; }
   .app-title { font-size: 1.35rem; }
 
@@ -1116,10 +1116,12 @@ html, body {
   .flashcard-box { min-height: 330px; }
 
   #view-progress.active {
-    display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 16px;
-    align-items: start;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   #view-settings.active {
@@ -1138,4 +1140,159 @@ html, body {
     transform: none;
     bottom: calc(var(--nav-h) + 28px);
   }
+}
+
+/* =========================================================
+   モーダル・小テスト一覧・手動評価・対戦ボード補完スタイル
+   ========================================================= */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  overflow-y: auto;
+}
+.modal-card {
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.modal-title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+.modal-sub {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-sub);
+  line-height: 1.45;
+}
+
+.setup-sub-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.study-stage {
+  display: flex;
+  flex-direction: column;
+}
+.quiz-card,
+.battle-question-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ql-answer {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--chip-bg);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.manual-override-wrap {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.manual-toggle-btn {
+  align-self: center;
+  border: none;
+  background: transparent;
+  color: var(--text-sub);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 4px 8px;
+}
+.manual-panel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.quiz-list-toolbar {
+  position: sticky;
+  top: 52px;
+  z-index: 20;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.quiz-list-toolbar .primary-btn {
+  flex: 1;
+}
+.quiz-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quiz-list-row {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quiz-list-q {
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.battle-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.battle-scoreboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.battle-score-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  border: 1px solid var(--glass-border);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.cloze-blank {
+  display: inline-block;
+  min-width: 72px;
+  padding: 0 8px;
+  margin: 0 2px;
+  border-bottom: 2.5px solid var(--accent);
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+.ex-highlight {
+  font-weight: 800;
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+[data-theme="matte-blue"] .ex-highlight,
+[data-theme="dark-slate"] .ex-highlight {
+  color: var(--accent);
 }

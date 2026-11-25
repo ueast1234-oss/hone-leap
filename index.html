@@ -72,6 +72,9 @@
         <button id="btnGateResetPw" class="text-btn" type="button" style="align-self:center;margin-top:2px;">
           パスワードを忘れた場合（再設定メール送信）
         </button>
+        <button id="btnGateGuest" class="text-btn" type="button" style="align-self:center;">
+          ログインせずに使う（オフライン学習）
+        </button>
         <p id="authGateError" class="gate-error"></p>
       </div>
     </div>
@@ -293,12 +296,12 @@
           <span id="vocabCountBadge" class="range-pill">0語</span>
         </div>
 
-        <div id="vocabLevelFilter" class="level-chips">
-          <button class="level-chip active" type="button" data-level="all">すべて</button>
-          <button class="level-chip" type="button" data-level="0">未学習</button>
-          <button class="level-chip" type="button" data-level="1">苦手</button>
-          <button class="level-chip" type="button" data-level="2">あやしい</button>
-          <button class="level-chip" type="button" data-level="3">習得済み</button>
+        <div id="vocabLevelFilter" class="level-chips" role="group" aria-label="習熟度フィルタ">
+          <button class="level-chip active" type="button" data-level="all" aria-label="すべて" title="すべて"></button>
+          <button class="level-chip" type="button" data-level="0" aria-label="未学習" title="未学習"></button>
+          <button class="level-chip" type="button" data-level="1" aria-label="苦手" title="苦手"></button>
+          <button class="level-chip" type="button" data-level="2" aria-label="あやしい" title="あやしい"></button>
+          <button class="level-chip" type="button" data-level="3" aria-label="習得済み" title="習得済み"></button>
         </div>
 
         <div class="vocab-listen-bar">
