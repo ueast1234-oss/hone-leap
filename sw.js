@@ -2,7 +2,7 @@
 // HONE - Service Worker (GitHub Pages Subpath & Redirect-Safe)
 // =========================================================
 
-const CACHE_NAME = 'hone-cache-v32';
+const CACHE_NAME = 'hone-cache-v34';
 
 const ASSETS_TO_CACHE = [
   './index.html',
@@ -33,7 +33,7 @@ self.addEventListener('install', (event) => {
       await Promise.all(
         ASSETS_TO_CACHE.map(async (assetUrl) => {
           try {
-            const netRes = await fetch(assetUrl, { redirect: 'follow' });
+            const netRes = await fetch(assetUrl, { redirect: 'follow', cache: 'no-cache' });
             if (netRes && netRes.ok && !netRes.redirected) {
               await cache.put(assetUrl, netRes);
             }

@@ -60,8 +60,8 @@ const VIEW_TITLES = {
   home: "HONE",
   vocab: "単語帳",
   study: "学習",
-  battle: "交流",
-  progress: "進捗",
+  battle: "フレンド",
+  progress: "記録",
   settings: "設定"
 };
 
@@ -94,8 +94,8 @@ const LEVEL_FILTERS = [
   { level: "all", label: "すべて" },
   { level: "0", label: "未学習" },
   { level: "1", label: "苦手" },
-  { level: "2", label: "あやしい" },
-  { level: "3", label: "習得済み" }
+  { level: "2", label: "うろ覚え" },
+  { level: "3", label: "定着" }
 ];
 
 const PART_RANGES = [
@@ -587,11 +587,11 @@ function updateSyncUi() {
     }
   } else {
     dot?.classList.remove("online");
-    if (statusText) statusText.textContent = "未ログイン（この端末に自動保存）";
-    if (loginIdEl) loginIdEl.textContent = "未ログイン（オフライン学習）";
+    if (statusText) statusText.textContent = "ゲスト利用中（この端末に自動保存）";
+    if (loginIdEl) loginIdEl.textContent = "未ログイン";
     if (recoveryStatusEl) recoveryStatusEl.textContent = "ログイン後に設定可能";
     if (logoutBtn) {
-      logoutBtn.textContent = "ログイン / 新規登録を開く";
+      logoutBtn.textContent = "ログイン / 新規登録";
       logoutBtn.style.color = "var(--accent-strong)";
     }
   }
@@ -851,8 +851,8 @@ function renderDonutAndLegend(svgSel, pctSel, legendSel, stats) {
 
   if (legendEl) {
     legendEl.innerHTML = `
-      <span class="legend-item"><span class="dot lv-3"></span>習得済み ${stats.lv3}</span>
-      <span class="legend-item"><span class="dot lv-2"></span>あやしい ${stats.lv2}</span>
+      <span class="legend-item"><span class="dot lv-3"></span>定着 ${stats.lv3}</span>
+      <span class="legend-item"><span class="dot lv-2"></span>うろ覚え ${stats.lv2}</span>
       <span class="legend-item"><span class="dot lv-1"></span>苦手 ${stats.lv1}</span>
       <span class="legend-item"><span class="dot lv-0"></span>未学習 ${stats.lv0}</span>
     `;
@@ -884,7 +884,7 @@ function renderUnitBarsInto(containerSel, levelsMap = state.levels) {
       <div class="unit-bar-item">
         <div class="unit-bar-head">
           <span>${escapeHtml(part.label)}</span>
-          <span>習得 ${pct}% (${lv3}/${total})</span>
+          <span>定着 ${pct}% (${lv3}/${total})</span>
         </div>
         <div class="unit-bar-track">
           <div class="unit-bar-seg lv-3" style="width:${w3}%"></div>
@@ -907,11 +907,11 @@ function renderHomeView() {
   const greetingEl = $("#homeUserGreeting");
   if (greetingEl) {
     if (state.nickname) {
-      greetingEl.textContent = `${state.nickname} さんの学習ダッシュボード`;
-    } else if (currentUser) {
-      greetingEl.textContent = `${state.loginId || "ログイン中"} さんの学習ダッシュボード`;
+      greetingEl.textContent = `${state.nickname} さん`;
+    } else if (currentUser && state.loginId) {
+      greetingEl.textContent = `${state.loginId} さん`;
     } else {
-      greetingEl.textContent = "オフライン対応 学習ダッシュボード";
+      greetingEl.textContent = "今日の学習";
     }
   }
 
@@ -1009,7 +1009,8 @@ function renderVocabList(list = getFilteredVocab()) {
     return;
   }
 
-  const levelNames = ["未学習", "苦手", "あやしい", "習得済み"];
+  const levelNames = ["未学習", "苦手", "うろ覚え", "定着"];
+  const speakerIcon = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
 
   container.innerHTML = list.map((w) => {
     const lv = Number(state.levels?.[w.no] || 0);
@@ -1057,9 +1058,9 @@ function renderVocabList(list = getFilteredVocab()) {
             <div class="acc-meta">
               ${w.unit ? `<span>${escapeHtml(w.unit)}</span>` : ""}
               ${w.phonetic ? `<span>${escapeHtml(w.phonetic)}</span>` : ""}
-              <span>評価: ${levelNames[lv]}</span>
+              <span>現在: ${levelNames[lv]}</span>
             </div>
-            <button type="button" class="audio-pill" data-speak-word="${escapeHtml(w.word)}">🔊 発音</button>
+            <button type="button" class="audio-pill" data-speak-word="${escapeHtml(w.word)}">${speakerIcon}<span>発音</span></button>
           </div>
           ${examplesHtml}
           ${w.note ? `
@@ -1070,8 +1071,8 @@ function renderVocabList(list = getFilteredVocab()) {
           ` : ""}
           <div class="listen-rate-row" style="margin-top:10px;">
             <button type="button" class="rate-btn lv-1-btn${lv === 1 ? " selected" : ""}" data-vocab-rate="1" data-no="${w.no}">苦手</button>
-            <button type="button" class="rate-btn lv-2-btn${lv === 2 ? " selected" : ""}" data-vocab-rate="2" data-no="${w.no}">あやしい</button>
-            <button type="button" class="rate-btn lv-3-btn${lv === 3 ? " selected" : ""}" data-vocab-rate="3" data-no="${w.no}">習得済み</button>
+            <button type="button" class="rate-btn lv-2-btn${lv === 2 ? " selected" : ""}" data-vocab-rate="2" data-no="${w.no}">うろ覚え</button>
+            <button type="button" class="rate-btn lv-3-btn${lv === 3 ? " selected" : ""}" data-vocab-rate="3" data-no="${w.no}">定着</button>
           </div>
         </div>
       </article>
@@ -1247,7 +1248,7 @@ function renderListenStep(triggerAudio = true) {
 
   if (playPauseBtn) playPauseBtn.textContent = listenState.playing ? "一時停止" : "再生";
   if (speedBtn) speedBtn.textContent = `速度: ${listenState.speed.toFixed(1)}x`;
-  if (loopBtn) loopBtn.textContent = `ループ: ${listenState.loop ? "ON" : "OFF"}`;
+  if (loopBtn) loopBtn.textContent = `リピート: ${listenState.loop ? "ON" : "OFF"}`;
 
   $$("[data-listen-rate]").forEach((btn) => {
     btn.classList.toggle("selected", Number(btn.dataset.listenRate) === lv);
@@ -1269,7 +1270,7 @@ function renderListenStep(triggerAudio = true) {
         } else {
           listenState.playing = false;
           renderListenStep(false);
-          showToast("聞き流し再生が完了しました");
+          showToast("リスニングが完了しました");
         }
       }, listenState.intervalMs);
     });
@@ -1277,7 +1278,7 @@ function renderListenStep(triggerAudio = true) {
 }
 
 /* =========================================================
-   学習画面（セットアップ・フラッシュカード・小テスト）
+   学習画面（セットアップ・フラッシュカード・確認テスト）
    ========================================================= */
 function renderStudySetupDefaults() {
   const sMin = $("#studyMin");
@@ -1295,6 +1296,13 @@ function setStudyModeTab(mode) {
   $("#fcOptions")?.classList.toggle("hidden", mode !== "flashcard");
   $("#quizOptions")?.classList.toggle("hidden", mode !== "quiz");
   $("#listenOptions")?.classList.toggle("hidden", mode !== "listen");
+
+  const startBtn = $("#btnStartStudy");
+  if (startBtn) {
+    if (mode === "quiz") startBtn.textContent = "確認テストをはじめる";
+    else if (mode === "listen") startBtn.textContent = "リスニングをはじめる";
+    else startBtn.textContent = "フラッシュカードをはじめる";
+  }
 }
 
 function exitStudyStages() {
@@ -1316,7 +1324,8 @@ function buildStudyCandidates() {
     if (w.no < s || w.no > e) return false;
     const lv = Number(state.levels?.[w.no] || 0);
     if (lvFilter === "all") return true;
-    if (lvFilter === "weak") return lv === 0 || lv === 1 || lv === 2;
+    if (lvFilter === "unmastered") return lv < 3;
+    if (lvFilter === "weak") return lv === 1 || lv === 2;
     return lv === Number(lvFilter);
   });
 
@@ -1385,16 +1394,20 @@ function renderFlashcard(allowAutoSpeak = false) {
   if ($("#fcNoBack")) $("#fcNoBack").textContent = `No. ${item.no}`;
 
   const wordFront = $("#fcWordFront");
+  const hintFront = $("#fcHintFront");
   if (wordFront) {
     if (fcFormat === "ja-en") {
       wordFront.textContent = item.meanings.join(" ／ ");
       wordFront.classList.add("is-ja");
+      if (hintFront) hintFront.textContent = "タップで英単語を表示";
     } else if (fcFormat === "example" && ex) {
       wordFront.innerHTML = formatExampleClozeHtml(ex.rawEn, item.word);
       wordFront.classList.add("is-ja");
+      if (hintFront) hintFront.textContent = "タップで解答を表示";
     } else {
       wordFront.textContent = item.word;
       wordFront.classList.remove("is-ja");
+      if (hintFront) hintFront.textContent = "タップで意味を表示";
     }
   }
 
@@ -1523,15 +1536,17 @@ function recordSingleQuizJudge(isCorrect, overrideLv = null) {
 
 function renderQuizListMode() {
   const metaEl = $("#quizMetaText");
-  if (metaEl) metaEl.textContent = `一覧テスト（全 ${quizQueue.length} 問）`;
+  if (metaEl) metaEl.textContent = `一覧形式（全 ${quizQueue.length} 問）`;
 
   const toggleBtn = $("#qListToggleAns");
   const finishBtn = $("#qListFinishBtn");
-  if (toggleBtn) toggleBtn.textContent = quizListRevealed ? "答えを隠す" : "答えを表示して採点する";
+  if (toggleBtn) toggleBtn.textContent = quizListRevealed ? "解答を隠す" : "解答を表示して採点";
   finishBtn?.classList.toggle("hidden", !quizListRevealed);
 
   const wrap = $("#quizListItems");
   if (!wrap) return;
+
+  const speakerIcon = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
 
   wrap.innerHTML = quizQueue.map((item, idx) => {
     const qa = getQuizPromptAndAnswer(item, quizFormat);
@@ -1539,8 +1554,8 @@ function renderQuizListMode() {
     return `
       <div class="glass-card quiz-list-row" data-qno="${item.no}">
         <div class="fc-top-bar">
-          <span class="fc-no">Q${idx + 1} (No.${item.no}) ${item.pos ? `[${escapeHtml(item.pos)}]` : ""}</span>
-          <button type="button" class="audio-pill" data-qlist-speak="${escapeHtml(item.word)}">🔊 発音</button>
+          <span class="fc-no">問${idx + 1}（No.${item.no}）${item.pos ? ` [${escapeHtml(item.pos)}]` : ""}</span>
+          <button type="button" class="audio-pill" data-qlist-speak="${escapeHtml(item.word)}">${speakerIcon}<span>発音</span></button>
         </div>
         <div class="quiz-list-q">${qa.promptHtml}</div>
         ${quizListRevealed ? `
@@ -1549,13 +1564,13 @@ function renderQuizListMode() {
             ${qa.answerSub ? `<div style="font-size:0.8rem;opacity:0.82;margin-top:2px;">${escapeHtml(qa.answerSub)}</div>` : ""}
           </div>
           <div class="ql-ox">
-            <button type="button" class="ox-btn wrong${ansState?.correct === false ? " selected" : ""}" data-qlist-ox="wrong" data-no="${item.no}">× 苦手 (Lv.1)</button>
-            <button type="button" class="ox-btn correct${ansState?.correct === true ? " selected" : ""}" data-qlist-ox="correct" data-no="${item.no}">○ 正解 (Lv.3)</button>
+            <button type="button" class="ox-btn wrong${ansState?.correct === false ? " selected" : ""}" data-qlist-ox="wrong" data-no="${item.no}">× 不正解</button>
+            <button type="button" class="ox-btn correct${ansState?.correct === true ? " selected" : ""}" data-qlist-ox="correct" data-no="${item.no}">○ 正解</button>
           </div>
           <div class="listen-rate-row" style="margin-top:6px;">
             <button type="button" class="rate-btn lv-1-btn${ansState?.level === 1 ? " selected" : ""}" data-qlist-lv="1" data-no="${item.no}">苦手</button>
-            <button type="button" class="rate-btn lv-2-btn${ansState?.level === 2 ? " selected" : ""}" data-qlist-lv="2" data-no="${item.no}">あやしい</button>
-            <button type="button" class="rate-btn lv-3-btn${ansState?.level === 3 ? " selected" : ""}" data-qlist-lv="3" data-no="${item.no}">習得済み</button>
+            <button type="button" class="rate-btn lv-2-btn${ansState?.level === 2 ? " selected" : ""}" data-qlist-lv="2" data-no="${item.no}">うろ覚え</button>
+            <button type="button" class="rate-btn lv-3-btn${ansState?.level === 3 ? " selected" : ""}" data-qlist-lv="3" data-no="${item.no}">定着</button>
           </div>
         ` : ""}
       </div>
@@ -1610,7 +1625,7 @@ function showQuizResults() {
   if ($("#quizResultScore")) $("#quizResultScore").textContent = `${correctCount} / ${total} 正解`;
   if ($("#quizResultNote")) {
     const pct = Math.round((correctCount / Math.max(1, total)) * 100);
-    $("#quizResultNote").textContent = `正答率 ${pct}% ・ 学習進捗に反映しました`;
+    $("#quizResultNote").textContent = `正答率 ${pct}% ・ 記録に反映しました`;
   }
 
   const retestBtn = $("#qResultRetestBtn");
@@ -1782,8 +1797,8 @@ function showBattleWaitingRoom(minNo, maxNo, count, format) {
 
   if ($("#battleRoomCodeDisplay")) $("#battleRoomCodeDisplay").textContent = battleSession.roomCode;
   if ($("#battleRoomMeta")) {
-    const fmtLabel = format === "ja-en" ? "日 → 英" : "英 → 日";
-    const modeNote = battleSession.localOnly ? "（ソロ練習モード）" : "";
+    const fmtLabel = format === "ja-en" ? "日本語 → 英語" : "英語 → 日本語";
+    const modeNote = battleSession.localOnly ? "（一人練習モード）" : "";
     $("#battleRoomMeta").textContent = `範囲 No.${minNo}〜${maxNo} ／ ${count}問 ／ ${fmtLabel} ${modeNote}`;
   }
 
@@ -1928,7 +1943,7 @@ function renderBattleResults() {
   const sorted = Object.values(battleSession.players || {}).sort((a, b) => (b.score || 0) - (a.score || 0));
   listEl.innerHTML = sorted.map((p, i) => `
     <div class="battle-player-row">
-      <span>${i === 0 ? "🏆 " : ""}${escapeHtml(p.name)}</span>
+      <span><strong style="margin-right:6px;">${i + 1}位</strong>${escapeHtml(p.name)}</span>
       <strong>${p.score || 0} pt</strong>
     </div>
   `).join("");
@@ -2160,7 +2175,7 @@ function bindEvents() {
   $("#btnGateGuest")?.addEventListener("click", () => {
     try { localStorage.setItem(STORAGE_KEYS.GUEST_MODE, "1"); } catch (_) {}
     $("#authGate")?.classList.add("hidden");
-    showToast("オフライン保存モードで開始しました");
+    showToast("ゲスト利用で開始しました");
   });
 
   $("#btnGateLogin")?.addEventListener("click", async () => {

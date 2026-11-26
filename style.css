@@ -304,17 +304,23 @@ html, body {
   margin-bottom: 12px;
 }
 .segmented.cols-3,
-.seg-switch { grid-template-columns: repeat(3, 1fr); }
+.seg-switch {
+  display: flex;
+}
+.segmented.cols-3 > .seg-btn {
+  flex: 1 1 auto;
+}
 .seg-switch.two-tabs { grid-template-columns: repeat(2, 1fr); }
 
 .seg-btn {
-  padding: 8px 6px;
+  padding: 8px 4px;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-sub);
   font-weight: 700;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
   cursor: pointer;
   font-family: inherit;
 }
