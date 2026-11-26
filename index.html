@@ -281,6 +281,36 @@
           <span class="tile-desc">一覧・赤シートで見る</span>
         </button>
       </div>
+
+      <!-- 月間学習カレンダー -->
+      <div id="homeCalendarCard" class="glass-card calendar-card">
+        <div class="cal-head">
+          <h3 class="card-title">学習カレンダー</h3>
+          <div class="cal-nav">
+            <button id="calPrevBtn" class="cal-nav-btn" type="button" aria-label="前の月">‹</button>
+            <span id="calMonthLabel" class="cal-month-label">2026年 11月</span>
+            <button id="calNextBtn" class="cal-nav-btn" type="button" aria-label="次の月">›</button>
+          </div>
+        </div>
+
+        <div class="cal-weekdays" aria-hidden="true">
+          <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+        </div>
+        <div id="calGrid" class="cal-grid"></div>
+
+        <div class="cal-foot">
+          <span id="calSelectedInfo" class="sub-label">今日：0 語</span>
+          <div class="cal-heat-legend" aria-label="学習量の目安">
+            <span class="sub-label">少</span>
+            <span class="cal-swatch cal-lv-0"></span>
+            <span class="cal-swatch cal-lv-1"></span>
+            <span class="cal-swatch cal-lv-2"></span>
+            <span class="cal-swatch cal-lv-3"></span>
+            <span class="cal-swatch cal-lv-4"></span>
+            <span class="sub-label">多</span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ==================== 2. 単語帳画面 ==================== -->
@@ -379,7 +409,23 @@
           </div>
           <div class="mode-pick-body">
             <span class="mode-pick-title">確認テスト</span>
-            <span class="mode-pick-desc">スペル入力や自己採点で定着をチェック</span>
+            <span class="mode-pick-desc">スペル入力や一問一答で定着をチェック</span>
+          </div>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="glass-card mode-pick-card" type="button" data-pick-mode="paper">
+          <div class="mode-pick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="8" y1="13" x2="16" y2="13"></line>
+              <line x1="8" y1="17" x2="13" y2="17"></line>
+            </svg>
+          </div>
+          <div class="mode-pick-body">
+            <span class="mode-pick-title">筆記テスト</span>
+            <span class="mode-pick-desc">テスト用紙形式で紙に書いて実力を試す</span>
           </div>
           <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
@@ -416,16 +462,13 @@
         </div>
 
         <div class="setup-block">
-          <div class="setup-block-head">
-            <span class="filter-label">出題対象</span>
-            <span class="sub-label">複数選択OK</span>
-          </div>
+          <span class="filter-label">出題対象</span>
           <div id="studyLevelChips" class="level-chips" role="group" aria-label="出題対象の選択">
-            <button class="level-chip active" type="button" data-study-lv="all">すべて</button>
-            <button class="level-chip" type="button" data-study-lv="0">未学習</button>
-            <button class="level-chip" type="button" data-study-lv="1">苦手</button>
-            <button class="level-chip" type="button" data-study-lv="2">うろ覚え</button>
-            <button class="level-chip" type="button" data-study-lv="3">定着</button>
+            <button class="level-chip active" type="button" data-level="all" data-study-lv="all">すべて</button>
+            <button class="level-chip" type="button" data-level="0" data-study-lv="0">未学習</button>
+            <button class="level-chip" type="button" data-level="1" data-study-lv="1">苦手</button>
+            <button class="level-chip" type="button" data-level="2" data-study-lv="2">うろ覚え</button>
+            <button class="level-chip" type="button" data-level="3" data-study-lv="3">定着</button>
           </div>
         </div>
 
@@ -454,14 +497,40 @@
           <div class="setup-row">
             <label class="filter-label" for="quizFormatSelect">テスト内容</label>
             <select id="quizFormatSelect" class="select-input">
-              <option value="ja-en-type" selected>日本語 → 英単語（タイピング）</option>
-              <option value="en-ja">英単語 → 日本語（自己採点）</option>
-              <option value="example-type">例文の穴埋め（タイピング）</option>
+              <option value="ja-en-type" selected>日本語 → 英単語</option>
+              <option value="en-ja">英単語 → 日本語</option>
+              <option value="example-type">例文の穴埋め</option>
             </select>
           </div>
           <div class="setup-row">
             <label class="filter-label" for="quizLimitInput">問題数</label>
             <input type="number" id="quizLimitInput" class="num-input" min="1" max="200" value="20" />
+          </div>
+        </div>
+
+        <!-- 筆記テスト設定（紙テスト用・本番形式） -->
+        <div id="paperOptions" class="setup-sub-group hidden">
+          <div class="setup-row">
+            <label class="filter-label" for="paperFormatSelect">テスト内容</label>
+            <select id="paperFormatSelect" class="select-input">
+              <option value="en-ja" selected>英単語 → 日本語</option>
+              <option value="ja-en">日本語 → 英単語</option>
+              <option value="example">例文の穴埋め</option>
+            </select>
+          </div>
+          <div class="setup-row">
+            <label class="filter-label" for="paperLimitInput">問題数</label>
+            <input type="number" id="paperLimitInput" class="num-input" min="1" max="200" value="20" />
+          </div>
+          <div class="setup-row">
+            <label class="filter-label" for="paperTimerSelect">制限時間</label>
+            <select id="paperTimerSelect" class="select-input">
+              <option value="0">なし</option>
+              <option value="180">3分</option>
+              <option value="300" selected>5分</option>
+              <option value="600">10分</option>
+              <option value="900">15分</option>
+            </select>
           </div>
         </div>
 
@@ -676,6 +745,40 @@
           <p id="quizResultNote" class="setting-desc" style="margin:0;"></p>
           <button id="qResultRetestBtn" class="sub-btn full-btn hidden" type="button">間違えた問題だけ解き直す</button>
           <button id="qResultRetryBtn" class="primary-btn full-btn" type="button">条件設定に戻る</button>
+        </div>
+      </div>
+
+      <!-- 筆記テストステージ（テスト用紙＆自己採点） -->
+      <div id="paperStage" class="study-stage hidden">
+        <div class="paper-sticky-bar glass">
+          <div class="paper-sticky-left">
+            <span id="paperMetaTitle" class="paper-meta-title">全 20 問</span>
+            <span id="paperTimerBadge" class="paper-timer-badge hidden">残り 05:00</span>
+          </div>
+          <button id="btnExitPaper" class="text-btn" type="button">終了</button>
+        </div>
+
+        <div id="paperGradingHelper" class="paper-grading-helper hidden">
+          <span class="sub-label">紙に書いた答えと照らし合わせて○×をつけてください</span>
+          <button id="btnPaperAllCorrect" class="sub-btn" type="button" style="padding:5px 10px;font-size:0.76rem;">すべて○にする</button>
+        </div>
+
+        <div id="paperSheetBox" class="glass-card paper-sheet">
+          <div id="paperItemsList" class="paper-items-list"></div>
+        </div>
+
+        <div id="paperBottomActions" class="paper-bottom-actions">
+          <button id="btnPaperRevealAnswers" class="primary-btn full-btn" type="button">解答を開いて採点する</button>
+          <button id="btnPaperFinishScore" class="primary-btn full-btn hidden" type="button">採点を確定して結果を見る</button>
+        </div>
+
+        <!-- 筆記テスト結果 -->
+        <div id="paperResultBox" class="glass-card study-setup hidden" style="text-align:center;">
+          <h3 class="section-heading" style="margin:0;">筆記テスト結果</h3>
+          <div id="paperResultScore" class="result-score">0 / 0 点</div>
+          <p id="paperResultNote" class="setting-desc" style="margin:0;"></p>
+          <button id="btnPaperRetestWrong" class="sub-btn full-btn hidden" type="button">間違えた問題だけ解き直す</button>
+          <button id="btnPaperBackSetup" class="primary-btn full-btn" type="button">条件設定に戻る</button>
         </div>
       </div>
     </section>

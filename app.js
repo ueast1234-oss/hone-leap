@@ -83,6 +83,7 @@ const DEFAULT_STATE = {
   friendId: "",
   levels: {}, // { [no]: 0 | 1 | 2 | 3 }
   streaks: {}, // { [no]: number } 確認テストでの連続正解数（3回連続で評価1段階UP）
+  studyLog: {}, // { [YYYY-MM-DD]: number } 日別学習単語数（カレンダー用）
   studiedIdsToday: [],
   studiedDate: "",
   streakDays: 0,
@@ -129,15 +130,21 @@ let state = structuredClone(DEFAULT_STATE);
 let prefs = structuredClone(DEFAULT_PREFS);
 let activeTab = "home";
 
+// カレンダー表示状態
+const _initNow = new Date();
+let calYear = _initNow.getFullYear();
+let calMonth = _initNow.getMonth();
+let calSelectedDate = "";
+
 // 単語帳状態
 let vocabMin = 1;
 let vocabMax = 100;
-let vocabLevelFilter = "all"; // "all" | "0" | "1" | "2" | "3" | "weak"
+let vocabSelectedLevels = new Set(); // 空の場合は「すべて」、それ以外は "0","1","2","3" の複数選択
 let redEnActive = false;
 let redJaActive = false;
 
 // 学習セットアップ状態
-let currentStudyMode = "flashcard"; // "flashcard" | "quiz" | "listen"
+let currentStudyMode = "flashcard"; // "flashcard" | "quiz" | "paper" | "listen"
 let studySelectedLevels = new Set(); // 空の場合は「すべて」、それ以外は "0","1","2","3" の複数選択
 
 // フラッシュカード状態
@@ -160,6 +167,14 @@ let spellTypedRest = "";
 let spellAcceptedNormalized = []; // 小文字英字のみに正規化した許容正解リスト
 let spellDisplayAnswer = "";
 let spellJudged = false;
+
+// 筆記テスト状態（テスト用紙形式・タイマー・採点）
+let paperQueue = [];
+let paperFormat = "en-ja";
+let paperGradingMode = false;
+let paperMarks = {}; // { [no]: boolean } true=○, false=×
+let paperTimerId = null;
+let paperTimeLeftSec = 0;
 
 // 聞き流し状態（デフォルト: 1.0x / 1.4秒 = 1400ms）
 let listenState = {
@@ -316,13 +331,17 @@ function saveLocalState(markUpdated = true) {
 
 function normalizeDailyState() {
   const today = todayKey();
+  if (!state.studyLog || typeof state.studyLog !== "object") state.studyLog = {};
   if (state.studiedDate !== today) {
     state.studiedDate = today;
     state.studiedIdsToday = [];
+  } else if (Array.isArray(state.studiedIdsToday) && state.studiedIdsToday.length > 0) {
+    state.studyLog[today] = Math.max(Number(state.studyLog[today] || 0), state.studiedIdsToday.length);
   }
   if (state.lastStudyDate && state.lastStudyDate !== today && state.lastStudyDate !== yesterdayKey()) {
     state.streakDays = 0;
   }
+  if (!calSelectedDate) calSelectedDate = today;
 }
 
 function setWordLevel(no, lv) {
@@ -330,15 +349,16 @@ function setWordLevel(no, lv) {
   state.levels[String(no)] = clamped;
   normalizeDailyState();
   const key = String(no);
+  const today = todayKey();
   if (!Array.isArray(state.studiedIdsToday)) state.studiedIdsToday = [];
   if (!state.studiedIdsToday.includes(key)) {
     state.studiedIdsToday.push(key);
-    const today = todayKey();
     if (state.lastStudyDate !== today) {
       state.streakDays = state.lastStudyDate === yesterdayKey() ? (state.streakDays || 0) + 1 : 1;
       state.lastStudyDate = today;
     }
   }
+  state.studyLog[today] = Math.max(Number(state.studyLog[today] || 0), state.studiedIdsToday.length);
   saveLocalState(true);
 }
 
@@ -632,6 +652,7 @@ async function pushCloudStateNow() {
       friendCode: state.friendId,
       levels: state.levels || {},
       streaks: state.streaks || {},
+      studyLog: state.studyLog || {},
       studiedIdsToday: state.studiedIdsToday || [],
       studiedDate: state.studiedDate || todayKey(),
       streakDays: state.streakDays || 0,
@@ -688,6 +709,7 @@ function subscribeUserDoc(uid) {
         friendId: ensureFriendId(remote.friendId || remote.friendCode || state.friendId),
         levels: { ...(state.levels || {}), ...(remote.levels || {}) },
         streaks: { ...(state.streaks || {}), ...(remote.streaks || {}) },
+        studyLog: { ...(state.studyLog || {}), ...(remote.studyLog || {}) },
         studiedIdsToday: remote.studiedIdsToday || state.studiedIdsToday,
         studiedDate: remote.studiedDate || state.studiedDate,
         streakDays: remote.streakDays ?? state.streakDays,
@@ -952,6 +974,70 @@ function renderHomeView() {
   const streakEl = $("#homeStreakDays");
   if (todayEl) todayEl.textContent = `${(state.studiedIdsToday || []).length} 語`;
   if (streakEl) streakEl.textContent = `${state.streakDays || 0} 日`;
+
+  renderHomeCalendar();
+}
+
+function getHeatClass(count) {
+  if (!count || count <= 0) return "cal-lv-0";
+  if (count < 20) return "cal-lv-1";
+  if (count < 50) return "cal-lv-2";
+  if (count < 100) return "cal-lv-3";
+  return "cal-lv-4";
+}
+
+function renderHomeCalendar() {
+  const grid = $("#calGrid");
+  const labelEl = $("#calMonthLabel");
+  const infoEl = $("#calSelectedInfo");
+  if (!grid || !labelEl) return;
+
+  labelEl.textContent = `${calYear}年 ${calMonth + 1}月`;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = todayKey();
+  if (!calSelectedDate) calSelectedDate = today;
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) {
+    cells.push(`<div class="cal-cell is-empty" aria-hidden="true"></div>`);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const cnt = dateKey === today
+      ? Math.max(Number(state.studyLog?.[dateKey] || 0), (state.studiedIdsToday || []).length)
+      : Number(state.studyLog?.[dateKey] || 0);
+    const heat = getHeatClass(cnt);
+    const isToday = dateKey === today ? " is-today" : "";
+    const isSel = dateKey === calSelectedDate ? " is-selected" : "";
+
+    cells.push(`
+      <button type="button" class="cal-cell ${heat}${isToday}${isSel}" data-cal-date="${dateKey}" aria-label="${calMonth + 1}月${d}日 ${cnt}語">
+        <span>${d}</span>
+        ${cnt > 0 ? `<span class="cal-cell-count">${cnt}</span>` : ""}
+      </button>
+    `);
+  }
+
+  grid.innerHTML = cells.join("");
+
+  grid.querySelectorAll("[data-cal-date]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      calSelectedDate = btn.dataset.calDate;
+      renderHomeCalendar();
+    });
+  });
+
+  if (infoEl && calSelectedDate) {
+    const [y, m, d] = calSelectedDate.split("-").map(Number);
+    const selCount = calSelectedDate === today
+      ? Math.max(Number(state.studyLog?.[calSelectedDate] || 0), (state.studiedIdsToday || []).length)
+      : Number(state.studyLog?.[calSelectedDate] || 0);
+    const prefix = calSelectedDate === today ? `今日（${m}月${d}日）` : `${y}年${m}月${d}日`;
+    infoEl.textContent = `${prefix}：${selCount} 語`;
+  }
 }
 
 function renderProgressView() {
@@ -972,15 +1058,30 @@ function renderProgressView() {
 }
 
 /* =========================================================
-   単語帳画面（文字入り横一列カラーチップ・番号右に品詞・赤シート）
+   単語帳画面（文字入り複数選択カラーチップ・番号右に品詞・赤シート）
    ========================================================= */
+function toggleVocabLevelChip(lv) {
+  if (lv === "all") {
+    vocabSelectedLevels.clear();
+  } else {
+    if (vocabSelectedLevels.has(lv)) {
+      vocabSelectedLevels.delete(lv);
+    } else {
+      vocabSelectedLevels.add(lv);
+    }
+    if (vocabSelectedLevels.size === 0 || vocabSelectedLevels.size === 4) {
+      vocabSelectedLevels.clear();
+    }
+  }
+  renderVocabView();
+}
+
 function renderLevelFilterChips() {
   const wrap = $("#vocabLevelFilter");
   if (!wrap) return;
+  const isAll = vocabSelectedLevels.size === 0;
   wrap.innerHTML = LEVEL_FILTERS.map((item) => {
-    const isActive =
-      vocabLevelFilter === item.level ||
-      (vocabLevelFilter === "weak" && (item.level === "1" || item.level === "2"));
+    const isActive = item.level === "all" ? isAll : (!isAll && vocabSelectedLevels.has(item.level));
     return `
       <button
         type="button"
@@ -991,10 +1092,7 @@ function renderLevelFilterChips() {
   }).join("");
 
   $$("#vocabLevelFilter .level-chip").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      vocabLevelFilter = btn.dataset.level;
-      renderVocabView();
-    });
+    btn.addEventListener("click", () => toggleVocabLevelChip(btn.dataset.level));
   });
 }
 
@@ -1003,10 +1101,9 @@ function getFilteredVocab() {
   const e = Math.max(vocabMin, vocabMax);
   return wordsData.filter((w) => {
     if (w.no < s || w.no > e) return false;
-    if (vocabLevelFilter === "all") return true;
-    const lv = Number(state.levels?.[w.no] || 0);
-    if (vocabLevelFilter === "weak") return lv === 1 || lv === 2;
-    return lv === Number(vocabLevelFilter);
+    if (vocabSelectedLevels.size === 0) return true;
+    const lv = String(Number(state.levels?.[w.no] || 0));
+    return vocabSelectedLevels.has(lv);
   });
 }
 
@@ -1343,14 +1440,17 @@ function toggleStudyLevelChip(lv) {
 }
 
 function openStudyPicker() {
+  clearInterval(paperTimerId);
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.add("hidden");
+  $("#paperStage")?.classList.add("hidden");
   $("#studySetupPanel")?.classList.add("hidden");
   $("#studyPickerPanel")?.classList.remove("hidden");
   updateBackButtonVisibility();
 }
 
 function openStudySetupForMode(mode) {
+  clearInterval(paperTimerId);
   const sMin = $("#studyMin");
   const sMax = $("#studyMax");
   if (sMin && !sMin.dataset.touched) sMin.value = prefs.goalMin || 1;
@@ -1359,6 +1459,7 @@ function openStudySetupForMode(mode) {
   renderStudyLevelChips();
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.add("hidden");
+  $("#paperStage")?.classList.add("hidden");
   $("#studyPickerPanel")?.classList.add("hidden");
   $("#studySetupPanel")?.classList.remove("hidden");
   setStudyModeTab(mode);
@@ -1369,15 +1470,19 @@ function setStudyModeTab(mode) {
   currentStudyMode = mode;
   $("#fcOptions")?.classList.toggle("hidden", mode !== "flashcard");
   $("#quizOptions")?.classList.toggle("hidden", mode !== "quiz");
+  $("#paperOptions")?.classList.toggle("hidden", mode !== "paper");
   $("#listenOptions")?.classList.toggle("hidden", mode !== "listen");
-  // 確認テストはランダム出題固定のため「出題順」行を非表示
-  $("#studyOrderRow")?.classList.toggle("hidden", mode === "quiz");
+  // 確認テストと筆記テストはランダム出題固定のため「出題順」行を非表示
+  $("#studyOrderRow")?.classList.toggle("hidden", mode === "quiz" || mode === "paper");
 
   const setupTitle = $("#studySetupTitle");
   const startBtn = $("#btnStartStudy");
   if (mode === "quiz") {
     if (setupTitle) setupTitle.textContent = "確認テストの設定";
     if (startBtn) startBtn.textContent = "確認テストをはじめる";
+  } else if (mode === "paper") {
+    if (setupTitle) setupTitle.textContent = "筆記テストの設定";
+    if (startBtn) startBtn.textContent = "筆記テストをはじめる";
   } else if (mode === "listen") {
     if (setupTitle) setupTitle.textContent = "リスニングの設定";
     if (startBtn) startBtn.textContent = "リスニングをはじめる";
@@ -1388,8 +1493,10 @@ function setStudyModeTab(mode) {
 }
 
 function exitStudyStages() {
+  clearInterval(paperTimerId);
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.add("hidden");
+  $("#paperStage")?.classList.add("hidden");
   $("#studyPickerPanel")?.classList.add("hidden");
   $("#studySetupPanel")?.classList.remove("hidden");
   updateBackButtonVisibility();
@@ -1417,6 +1524,12 @@ function buildStudyCandidates() {
       list = list.filter((w) => examplesMap.has(w.no));
     }
     list = shuffleArray(list);
+  } else if (currentStudyMode === "paper") {
+    const pFmt = $("#paperFormatSelect")?.value || "en-ja";
+    if (pFmt === "example") {
+      list = list.filter((w) => examplesMap.has(w.no));
+    }
+    list = shuffleArray(list);
   } else if (order === "random") {
     list = shuffleArray(list);
   }
@@ -1426,7 +1539,10 @@ function buildStudyCandidates() {
 function startSelectedStudyMode() {
   const candidates = buildStudyCandidates();
   if (!candidates.length) {
-    if (currentStudyMode === "quiz" && ($("#quizFormatSelect")?.value === "example-type")) {
+    const isExampleMode =
+      (currentStudyMode === "quiz" && $("#quizFormatSelect")?.value === "example-type") ||
+      (currentStudyMode === "paper" && $("#paperFormatSelect")?.value === "example");
+    if (isExampleMode) {
       showToast("この範囲に例文データがありません（No.301〜600 に収録）");
     } else {
       showToast("条件に一致する単語がありません");
@@ -1450,6 +1566,7 @@ function startSelectedStudyMode() {
     $("#studyPickerPanel")?.classList.add("hidden");
     $("#studySetupPanel")?.classList.add("hidden");
     $("#quizStage")?.classList.add("hidden");
+    $("#paperStage")?.classList.add("hidden");
     $("#flashcardStage")?.classList.remove("hidden");
     updateBackButtonVisibility();
     renderFlashcard(true);
@@ -1464,6 +1581,15 @@ function startSelectedStudyMode() {
     quizAnswers = {};
     quizIsRetest = false;
     openQuizStage();
+    return;
+  }
+
+  if (currentStudyMode === "paper") {
+    const limit = Math.max(1, Number($("#paperLimitInput")?.value || 20));
+    paperQueue = candidates.slice(0, limit);
+    paperFormat = $("#paperFormatSelect")?.value || "en-ja";
+    const timerSec = Number($("#paperTimerSelect")?.value || 0);
+    openPaperStage(timerSec);
   }
 }
 
@@ -1899,6 +2025,155 @@ function showQuizResults() {
   if (retestBtn) {
     retestBtn.classList.toggle("hidden", wrongItems.length === 0);
   }
+}
+
+/* ---------- 筆記テスト（テスト用紙形式・タイマー・採点） ---------- */
+function formatTimerClock(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `残り ${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function openPaperStage(timerSec = 0) {
+  clearInterval(paperTimerId);
+  paperGradingMode = false;
+  paperMarks = {};
+  paperTimeLeftSec = Math.max(0, Number(timerSec) || 0);
+
+  $("#studyPickerPanel")?.classList.add("hidden");
+  $("#studySetupPanel")?.classList.add("hidden");
+  $("#flashcardStage")?.classList.add("hidden");
+  $("#quizStage")?.classList.add("hidden");
+  $("#paperStage")?.classList.remove("hidden");
+
+  $("#paperResultBox")?.classList.add("hidden");
+  $("#paperSheetBox")?.classList.remove("hidden");
+  $("#paperBottomActions")?.classList.remove("hidden");
+  $("#paperGradingHelper")?.classList.add("hidden");
+  $("#btnPaperRevealAnswers")?.classList.remove("hidden");
+  $("#btnPaperFinishScore")?.classList.add("hidden");
+
+  if ($("#paperMetaTitle")) $("#paperMetaTitle").textContent = `筆記テスト（全 ${paperQueue.length} 問）`;
+
+  const timerBadge = $("#paperTimerBadge");
+  if (timerBadge) {
+    if (paperTimeLeftSec > 0) {
+      timerBadge.textContent = formatTimerClock(paperTimeLeftSec);
+      timerBadge.classList.remove("hidden", "urgent");
+      paperTimerId = setInterval(() => {
+        paperTimeLeftSec = Math.max(0, paperTimeLeftSec - 1);
+        timerBadge.textContent = formatTimerClock(paperTimeLeftSec);
+        timerBadge.classList.toggle("urgent", paperTimeLeftSec <= 30);
+        if (paperTimeLeftSec <= 0) {
+          clearInterval(paperTimerId);
+          timerBadge.textContent = "時間終了";
+          showToast("制限時間が終了しました。解答を開いて採点しましょう！");
+        }
+      }, 1000);
+    } else {
+      timerBadge.classList.add("hidden");
+    }
+  }
+
+  updateBackButtonVisibility();
+  renderPaperSheet();
+}
+
+function getPaperQuestionData(item) {
+  const ex = (examplesMap.get(item.no) || [])[0] || null;
+  if (paperFormat === "ja-en") {
+    return {
+      promptHtml: escapeHtml(item.meanings.join(" ／ ")),
+      answerText: item.word
+    };
+  }
+  if (paperFormat === "example" && ex) {
+    return {
+      promptHtml: `${formatExampleClozeHtml(ex.rawEn, item.word)}${ex.ja ? `<div style="font-size:0.8rem;color:var(--text-sub);font-weight:600;margin-top:3px;">${escapeHtml(ex.ja)}</div>` : ""}`,
+      answerText: `${item.word}（${item.meanings[0] || ""}）`
+    };
+  }
+  return {
+    promptHtml: escapeHtml(item.word),
+    answerText: item.meanings.join(" ／ ")
+  };
+}
+
+function renderPaperSheet() {
+  const listEl = $("#paperItemsList");
+  if (!listEl) return;
+
+  listEl.innerHTML = paperQueue.map((item, idx) => {
+    const qData = getPaperQuestionData(item);
+    const mark = paperMarks[item.no];
+    return `
+      <div class="paper-item-row" data-paper-no="${item.no}">
+        <div class="paper-q-head">
+          <span class="paper-q-num">問 ${idx + 1}　No.${item.no}${item.pos ? ` [${escapeHtml(item.pos)}]` : ""}</span>
+          ${paperGradingMode ? `<button type="button" class="audio-pill" data-paper-speak="${escapeHtml(item.word)}" style="padding:3px 8px;font-size:0.7rem;">発音</button>` : ""}
+        </div>
+        <div class="paper-q-prompt">${qData.promptHtml}</div>
+        ${!paperGradingMode
+          ? `<div class="paper-write-line" aria-hidden="true"></div>`
+          : `
+            <div class="paper-ans-row">
+              <div class="paper-ans-text">${escapeHtml(qData.answerText)}</div>
+              <div class="paper-ox-btns">
+                <button type="button" class="paper-ox-mini wrong${mark === false ? " selected" : ""}" data-paper-mark="wrong" data-no="${item.no}" aria-label="不正解">×</button>
+                <button type="button" class="paper-ox-mini correct${mark === true ? " selected" : ""}" data-paper-mark="correct" data-no="${item.no}" aria-label="正解">○</button>
+              </div>
+            </div>
+          `
+        }
+      </div>
+    `;
+  }).join("");
+
+  if (paperGradingMode) {
+    listEl.querySelectorAll("[data-paper-speak]").forEach((btn) => {
+      btn.addEventListener("click", () => speakEnglish(btn.dataset.paperSpeak || ""));
+    });
+    listEl.querySelectorAll("[data-paper-mark]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const no = Number(btn.dataset.no);
+        paperMarks[no] = btn.dataset.paperMark === "correct";
+        renderPaperSheet();
+      });
+    });
+  }
+}
+
+function revealPaperAnswers() {
+  clearInterval(paperTimerId);
+  paperGradingMode = true;
+  $("#paperGradingHelper")?.classList.remove("hidden");
+  $("#btnPaperRevealAnswers")?.classList.add("hidden");
+  $("#btnPaperFinishScore")?.classList.remove("hidden");
+  renderPaperSheet();
+}
+
+function finishPaperScoring() {
+  let correctCount = 0;
+  paperQueue.forEach((item) => {
+    const isOk = paperMarks[item.no] === true;
+    paperMarks[item.no] = isOk;
+    if (isOk) correctCount++;
+    applyQuizResultToMastery(item.no, isOk);
+  });
+
+  const total = paperQueue.length;
+  const pct = Math.round((correctCount / Math.max(1, total)) * 100);
+  const wrongCount = total - correctCount;
+
+  $("#paperSheetBox")?.classList.add("hidden");
+  $("#paperBottomActions")?.classList.add("hidden");
+  $("#paperGradingHelper")?.classList.add("hidden");
+  $("#paperTimerBadge")?.classList.add("hidden");
+  $("#paperResultBox")?.classList.remove("hidden");
+
+  if ($("#paperResultScore")) $("#paperResultScore").textContent = `${correctCount} / ${total} 点（${pct}%）`;
+  if ($("#paperResultNote")) $("#paperResultNote").textContent = "結果を連続正解カウント・学習記録に反映しました";
+  $("#btnPaperRetestWrong")?.classList.toggle("hidden", wrongCount === 0);
 }
 
 /* =========================================================
@@ -2613,7 +2888,11 @@ function bindEvents() {
   // ヘッダー＆下部ナビゲーション
   $("#btnBack")?.addEventListener("click", () => {
     if (activeTab === "study") {
-      if (!$("#flashcardStage")?.classList.contains("hidden") || !$("#quizStage")?.classList.contains("hidden")) {
+      if (
+        !$("#flashcardStage")?.classList.contains("hidden") ||
+        !$("#quizStage")?.classList.contains("hidden") ||
+        !$("#paperStage")?.classList.contains("hidden")
+      ) {
         exitStudyStages();
         return;
       }
@@ -2636,7 +2915,7 @@ function bindEvents() {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
-  // ホーム画面のクイックアクションタイル
+  // ホーム画面のクイックアクションタイル＆カレンダー操作
   $$(".action-tile[data-jump]").forEach((tile) => {
     tile.addEventListener("click", () => {
       const target = tile.dataset.jump;
@@ -2649,10 +2928,28 @@ function bindEvents() {
       } else if (target === "vocab") {
         vocabMin = prefs.goalMin || 1;
         vocabMax = prefs.goalMax || 100;
-        vocabLevelFilter = tile.dataset.filter === "weak" ? "weak" : "all";
+        vocabSelectedLevels = tile.dataset.filter === "weak" ? new Set(["1", "2"]) : new Set();
         switchTab("vocab");
       }
     });
+  });
+
+  $("#calPrevBtn")?.addEventListener("click", () => {
+    calMonth--;
+    if (calMonth < 0) {
+      calMonth = 11;
+      calYear--;
+    }
+    renderHomeCalendar();
+  });
+
+  $("#calNextBtn")?.addEventListener("click", () => {
+    calMonth++;
+    if (calMonth > 11) {
+      calMonth = 0;
+      calYear++;
+    }
+    renderHomeCalendar();
   });
 
   // 単語帳画面
@@ -2838,6 +3135,23 @@ function bindEvents() {
     openQuizStage();
   });
   $("#qResultRetryBtn")?.addEventListener("click", exitStudyStages);
+
+  // 筆記テスト操作
+  $("#btnExitPaper")?.addEventListener("click", exitStudyStages);
+  $("#btnPaperRevealAnswers")?.addEventListener("click", revealPaperAnswers);
+  $("#btnPaperAllCorrect")?.addEventListener("click", () => {
+    paperQueue.forEach((item) => { paperMarks[item.no] = true; });
+    renderPaperSheet();
+  });
+  $("#btnPaperFinishScore")?.addEventListener("click", finishPaperScoring);
+  $("#btnPaperRetestWrong")?.addEventListener("click", () => {
+    const wrong = shuffleArray(paperQueue.filter((item) => paperMarks[item.no] !== true));
+    if (!wrong.length) return;
+    paperQueue = wrong;
+    const timerSec = Number($("#paperTimerSelect")?.value || 0);
+    openPaperStage(timerSec);
+  });
+  $("#btnPaperBackSetup")?.addEventListener("click", exitStudyStages);
 
   // フレンドタブ（選択カード → 対戦／フレンド一覧）
   $$("[data-pick-battle]").forEach((card) => {
