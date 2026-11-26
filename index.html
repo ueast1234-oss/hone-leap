@@ -331,10 +331,21 @@
 
       <div id="vocabList" class="vocab-list"></div>
 
-      <!-- 赤シート切替バー -->
-      <div id="floatingRedBar" class="floating-red-bar glass hidden">
-        <button id="toggleRedEn" class="red-toggle-btn" type="button">赤シート：英</button>
-        <button id="toggleRedJa" class="red-toggle-btn" type="button">赤シート：日</button>
+      <!-- 赤シート切替バー（左：赤シート ／ 英語の下・日本語の下にトグルスイッチ） -->
+      <div id="floatingRedBar" class="floating-red-bar glass hidden" role="region" aria-label="赤シート切替">
+        <span class="red-bar-label">赤シート</span>
+        <div class="red-toggle-col">
+          <span class="red-col-caption">英語</span>
+          <button id="toggleRedEn" class="red-switch" type="button" role="switch" aria-checked="false" aria-label="英語の赤シート">
+            <span class="red-switch-knob"></span>
+          </button>
+        </div>
+        <div class="red-toggle-col">
+          <span class="red-col-caption">日本語</span>
+          <button id="toggleRedJa" class="red-switch" type="button" role="switch" aria-checked="false" aria-label="日本語の赤シート">
+            <span class="red-switch-knob"></span>
+          </button>
+        </div>
       </div>
     </section>
 
@@ -393,7 +404,6 @@
       <div id="studySetupPanel" class="glass-card study-setup hidden">
         <div class="study-setup-head">
           <h3 id="studySetupTitle" class="card-title">フラッシュカードの設定</h3>
-          <button id="btnBackToModePicker" class="text-btn" type="button">← モード変更</button>
         </div>
 
         <div class="setup-row">
@@ -405,20 +415,21 @@
           </div>
         </div>
 
-        <div class="setup-row">
-          <label class="filter-label" for="studyLevelSelect">出題対象</label>
-          <select id="studyLevelSelect" class="select-input">
-            <option value="all" selected>すべて</option>
-            <option value="unmastered">未定着すべて</option>
-            <option value="weak">苦手・うろ覚え</option>
-            <option value="0">未学習のみ</option>
-            <option value="1">苦手のみ</option>
-            <option value="2">うろ覚えのみ</option>
-            <option value="3">定着のみ</option>
-          </select>
+        <div class="setup-block">
+          <div class="setup-block-head">
+            <span class="filter-label">出題対象</span>
+            <span class="sub-label">複数選択OK</span>
+          </div>
+          <div id="studyLevelChips" class="level-chips" role="group" aria-label="出題対象の選択">
+            <button class="level-chip active" type="button" data-study-lv="all">すべて</button>
+            <button class="level-chip" type="button" data-study-lv="0">未学習</button>
+            <button class="level-chip" type="button" data-study-lv="1">苦手</button>
+            <button class="level-chip" type="button" data-study-lv="2">うろ覚え</button>
+            <button class="level-chip" type="button" data-study-lv="3">定着</button>
+          </div>
         </div>
 
-        <div class="setup-row">
+        <div id="studyOrderRow" class="setup-row">
           <label class="filter-label" for="studyOrderSelect">出題順</label>
           <select id="studyOrderSelect" class="select-input">
             <option value="seq" selected>番号順</option>
@@ -438,22 +449,14 @@
           </div>
         </div>
 
-        <!-- 確認テスト設定 -->
+        <!-- 確認テスト設定（ランダム出題固定・1問ずつ固定） -->
         <div id="quizOptions" class="setup-sub-group hidden">
           <div class="setup-row">
             <label class="filter-label" for="quizFormatSelect">テスト内容</label>
             <select id="quizFormatSelect" class="select-input">
-              <option value="spell" selected>スペル入力</option>
-              <option value="en-ja">英語 → 日本語</option>
-              <option value="ja-en">日本語 → 英語</option>
-              <option value="example">例文の穴埋め</option>
-            </select>
-          </div>
-          <div id="quizLayoutRow" class="setup-row hidden">
-            <label class="filter-label" for="quizLayoutSelect">進め方</label>
-            <select id="quizLayoutSelect" class="select-input">
-              <option value="single" selected>1問ずつ進める</option>
-              <option value="list">一覧でまとめて（ノート用）</option>
+              <option value="ja-en-type" selected>日本語 → 英単語（タイピング）</option>
+              <option value="en-ja">英単語 → 日本語（自己採点）</option>
+              <option value="example-type">例文の穴埋め（タイピング）</option>
             </select>
           </div>
           <div class="setup-row">
@@ -563,7 +566,7 @@
           <div id="quizProgressBar" class="thin-progress-fill" style="width:0%;"></div>
         </div>
 
-        <!-- スペル入力（アプリ内専用キーボード・予測変換なし） -->
+        <!-- タイピング入力（文字数非表示・先頭1文字表示・専用キーボード） -->
         <div id="quizSpellBox" class="spell-stage hidden">
           <div class="glass-card quiz-card">
             <div class="fc-top-bar">
@@ -578,24 +581,24 @@
             </div>
 
             <div id="qSpellMeaning" class="spell-meaning">達成する</div>
-            <div id="qSpellSlots" class="spell-slots" aria-live="polite"></div>
+            <div id="qSpellSubNote" class="spell-subnote hidden"></div>
+
+            <!-- 文字数がわからない1枠入力表示（先頭1文字のみ表示） -->
+            <div id="qSpellDisplayBox" class="spell-input-box" aria-live="polite">
+              <span id="qSpellFirstChar" class="spell-first-char">a</span><span id="qSpellTypedRest" class="spell-typed-rest"></span><span id="qSpellCursor" class="spell-cursor"></span>
+            </div>
 
             <!-- 判定後の結果表示 -->
             <div id="qSpellFeedback" class="spell-feedback hidden">
               <div id="qSpellJudgeBadge" class="spell-judge-badge">○ 正解</div>
               <div id="qSpellCorrectWord" class="spell-correct-word"></div>
-              <div class="listen-rate-row" style="margin-top:8px;">
-                <button class="rate-btn lv-1-btn" type="button" data-spell-lv="1">苦手</button>
-                <button class="rate-btn lv-2-btn" type="button" data-spell-lv="2">うろ覚え</button>
-                <button class="rate-btn lv-3-btn" type="button" data-spell-lv="3">定着</button>
-              </div>
+              <div id="qSpellStreakInfo" class="streak-progress-pill"></div>
               <button id="qSpellNextBtn" class="primary-btn full-btn" type="button" style="margin-top:10px;">次の問題へ</button>
             </div>
 
-            <!-- 入力中のアクションバー -->
-            <div id="qSpellActionRow" class="spell-action-row">
-              <button id="qSpellGiveUpBtn" class="sub-btn" type="button">わからない</button>
-              <button id="qSpellSubmitBtn" class="primary-btn" type="button">判定する</button>
+            <!-- 入力中のアクションボタン（判定するのみ） -->
+            <div id="qSpellActionRow" class="spell-action-single">
+              <button id="qSpellSubmitBtn" class="primary-btn full-btn" type="button">判定する</button>
             </div>
           </div>
 
@@ -625,7 +628,7 @@
               <button type="button" class="q-key" data-key="l">l</button>
             </div>
             <div class="qwerty-row">
-              <button type="button" id="qSpellHintBtn" class="q-key q-key-fn" title="1文字ヒント">ヒント</button>
+              <button type="button" id="qSpellClearBtn" class="q-key q-key-fn" title="入力をクリア">クリア</button>
               <button type="button" class="q-key" data-key="z">z</button>
               <button type="button" class="q-key" data-key="x">x</button>
               <button type="button" class="q-key" data-key="c">c</button>
@@ -638,7 +641,7 @@
           </div>
         </div>
 
-        <!-- 一問一答 -->
+        <!-- 自己採点（英単語 → 日本語） -->
         <div id="quizSingleBox" class="glass-card quiz-card">
           <div class="fc-top-bar">
             <span id="qSingleNo" class="fc-no">No. 1</span>
@@ -655,28 +658,15 @@
               <strong id="qSingleAnswerMain"></strong>
               <div id="qSingleAnswerSub" style="font-size:0.84rem;opacity:0.82;margin-top:4px;"></div>
             </div>
-            <div class="ql-ox">
+            <div id="qSingleJudgeBtns" class="ql-ox">
               <button id="qBtnWrong" class="ox-btn wrong" type="button">× 不正解</button>
               <button id="qBtnCorrect" class="ox-btn correct" type="button">○ 正解</button>
             </div>
-            <div class="manual-override-wrap">
-              <button id="qManualToggleBtn" class="manual-toggle-btn" type="button">習熟度を直接選ぶ ▾</button>
-              <div id="qManualPanel" class="manual-panel hidden">
-                <button class="rate-btn lv-1-btn" type="button" data-q-override="1">苦手</button>
-                <button class="rate-btn lv-2-btn" type="button" data-q-override="2">うろ覚え</button>
-                <button class="rate-btn lv-3-btn" type="button" data-q-override="3">定着</button>
-              </div>
+            <div id="qSingleFeedback" class="spell-feedback hidden" style="border-top:none;padding-top:6px;">
+              <div id="qSingleStreakInfo" class="streak-progress-pill"></div>
+              <button id="qSingleNextBtn" class="primary-btn full-btn" type="button" style="margin-top:10px;">次の問題へ</button>
             </div>
           </div>
-        </div>
-
-        <!-- 一覧形式 -->
-        <div id="quizListBox" class="hidden">
-          <div id="quizListToolbar" class="quiz-list-toolbar">
-            <button id="qListToggleAns" class="primary-btn" type="button">解答を表示して採点</button>
-            <button id="qListFinishBtn" class="primary-btn hidden" type="button">採点を完了する</button>
-          </div>
-          <div id="quizListItems" class="quiz-list-items"></div>
         </div>
 
         <!-- 結果 -->
@@ -692,13 +682,42 @@
 
     <!-- ==================== 4. フレンド・対戦画面 ==================== -->
     <section id="view-battle" class="view">
-      <div class="segmented glass" id="battleSubSwitch">
-        <button class="seg-btn active" data-battle-tab="match" type="button">リアルタイム対戦</button>
-        <button class="seg-btn" data-battle-tab="friends" type="button">フレンド</button>
+      <!-- ステップ1：選択カード画面 -->
+      <div id="battlePickerPanel" class="study-picker">
+        <p class="study-picker-lead">メニューを選んでください</p>
+
+        <button class="glass-card mode-pick-card" type="button" data-pick-battle="match">
+          <div class="mode-pick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
+          <div class="mode-pick-body">
+            <span class="mode-pick-title">リアルタイム対戦</span>
+            <span class="mode-pick-desc">合言葉でルームを作って早押し4択バトル</span>
+          </div>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="glass-card mode-pick-card" type="button" data-pick-battle="friends">
+          <div class="mode-pick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <div class="mode-pick-body">
+            <span class="mode-pick-title">フレンド一覧</span>
+            <span class="mode-pick-desc">フレンドの追加や学習状況の共有</span>
+          </div>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
+        </button>
       </div>
 
       <!-- A. リアルタイム対戦パネル -->
-      <div id="battleMatchPanel" class="battle-panel">
+      <div id="battleMatchPanel" class="battle-panel hidden">
         <div id="battleLobby" class="battle-stack">
           <div class="glass-card study-setup">
             <h3 class="card-title">ルームを作る</h3>

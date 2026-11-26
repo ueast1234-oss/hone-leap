@@ -82,6 +82,7 @@ const DEFAULT_STATE = {
   nickname: "",
   friendId: "",
   levels: {}, // { [no]: 0 | 1 | 2 | 3 }
+  streaks: {}, // { [no]: number } 確認テストでの連続正解数（3回連続で評価1段階UP）
   studiedIdsToday: [],
   studiedDate: "",
   streakDays: 0,
@@ -89,6 +90,8 @@ const DEFAULT_STATE = {
   friends: [], // [{ uid, nickname, friendId }]
   updatedAt: 0
 };
+
+const STREAK_TO_PROMOTE = 3;
 
 const LEVEL_FILTERS = [
   { level: "all", label: "すべて" },
@@ -135,6 +138,7 @@ let redJaActive = false;
 
 // 学習セットアップ状態
 let currentStudyMode = "flashcard"; // "flashcard" | "quiz" | "listen"
+let studySelectedLevels = new Set(); // 空の場合は「すべて」、それ以外は "0","1","2","3" の複数選択
 
 // フラッシュカード状態
 let fcQueue = [];
@@ -142,19 +146,19 @@ let fcIndex = 0;
 let fcFlipped = false;
 let fcFormat = "en-ja";
 
-// 小テスト状態
+// 確認テスト状態
 let quizQueue = [];
 let quizIndex = 0;
-let quizFormat = "spell";
-let quizLayout = "single"; // "single" | "list"
+let quizFormat = "ja-en-type"; // "ja-en-type" | "en-ja" | "example-type"
 let quizAnswers = {}; // { [no]: { correct: boolean, level: number } }
-let quizListRevealed = false;
 let quizIsRetest = false;
+let singleJudged = false;
 
-// スペル入力テスト状態
-let spellTargetTokens = []; // [{ type: 'char', expected: 'a' } | { type: 'sep', char: '-'|' ' }]
-let spellAcceptedWords = []; // ['afterward', 'afterwards']
-let spellTypedChars = []; // array of typed lowercase chars matching 'char' tokens
+// タイピング入力状態（文字数非表示・先頭1文字固定表示）
+let spellFirstChar = "";
+let spellTypedRest = "";
+let spellAcceptedNormalized = []; // 小文字英字のみに正規化した許容正解リスト
+let spellDisplayAnswer = "";
 let spellJudged = false;
 
 // 聞き流し状態（デフォルト: 1.0x / 1.4秒 = 1400ms）
@@ -627,6 +631,7 @@ async function pushCloudStateNow() {
       friendId: state.friendId,
       friendCode: state.friendId,
       levels: state.levels || {},
+      streaks: state.streaks || {},
       studiedIdsToday: state.studiedIdsToday || [],
       studiedDate: state.studiedDate || todayKey(),
       streakDays: state.streakDays || 0,
@@ -682,6 +687,7 @@ function subscribeUserDoc(uid) {
         nickname: remote.nickname ?? state.nickname,
         friendId: ensureFriendId(remote.friendId || remote.friendCode || state.friendId),
         levels: { ...(state.levels || {}), ...(remote.levels || {}) },
+        streaks: { ...(state.streaks || {}), ...(remote.streaks || {}) },
         studiedIdsToday: remote.studiedIdsToday || state.studiedIdsToday,
         studiedDate: remote.studiedDate || state.studiedDate,
         streakDays: remote.streakDays ?? state.streakDays,
@@ -785,6 +791,23 @@ function maybePromptRecoveryEmail() {
 /* =========================================================
    画面切り替え＆ヘッダー制御
    ========================================================= */
+function updateBackButtonVisibility() {
+  const backBtn = $("#btnBack");
+  if (!backBtn) return;
+
+  let showBack = false;
+  if (activeTab === "settings") {
+    showBack = true;
+  } else if (activeTab === "study") {
+    const onPicker = !$("#studyPickerPanel")?.classList.contains("hidden");
+    showBack = !onPicker;
+  } else if (activeTab === "battle") {
+    const onPicker = !$("#battlePickerPanel")?.classList.contains("hidden");
+    showBack = !onPicker;
+  }
+  backBtn.classList.toggle("is-hidden", !showBack);
+}
+
 function switchTab(tabName) {
   activeTab = tabName;
   $$(".view").forEach((v) => v.classList.remove("active"));
@@ -798,18 +821,17 @@ function switchTab(tabName) {
   const titleEl = $("#headerTitle");
   if (titleEl) titleEl.textContent = VIEW_TITLES[tabName] || "HONE";
 
-  const backBtn = $("#btnBack");
-  if (backBtn) backBtn.classList.toggle("is-hidden", tabName === "home");
-
   const redBar = $("#floatingRedBar");
   if (redBar) redBar.classList.toggle("hidden", tabName !== "vocab");
 
   if (tabName === "home") renderHomeView();
   else if (tabName === "vocab") renderVocabView();
   else if (tabName === "study") openStudyPicker();
-  else if (tabName === "battle") renderBattleFriendView();
+  else if (tabName === "battle") openBattlePicker();
   else if (tabName === "progress") renderProgressView();
   else if (tabName === "settings") renderSettingsView();
+
+  updateBackButtonVisibility();
 }
 
 /* =========================================================
@@ -1139,8 +1161,16 @@ function updateRedSheetClasses() {
       listEl.querySelectorAll(".revealed").forEach((el) => el.classList.remove("revealed"));
     }
   }
-  $("#toggleRedEn")?.classList.toggle("active", redEnActive);
-  $("#toggleRedJa")?.classList.toggle("active", redJaActive);
+  const enSwitch = $("#toggleRedEn");
+  const jaSwitch = $("#toggleRedJa");
+  if (enSwitch) {
+    enSwitch.classList.toggle("active", redEnActive);
+    enSwitch.setAttribute("aria-checked", String(redEnActive));
+  }
+  if (jaSwitch) {
+    jaSwitch.classList.toggle("active", redJaActive);
+    jaSwitch.setAttribute("aria-checked", String(redJaActive));
+  }
 }
 
 /* =========================================================
@@ -1282,13 +1312,42 @@ function renderListenStep(triggerAudio = true) {
 }
 
 /* =========================================================
-   学習画面（モード選択・セットアップ・フラッシュカード・確認テスト）
+   学習画面（モード選択・マルチ選択チップ・フラッシュカード・確認テスト）
    ========================================================= */
+function renderStudyLevelChips() {
+  const isAll = studySelectedLevels.size === 0;
+  $$("#studyLevelChips [data-study-lv]").forEach((btn) => {
+    const lv = btn.dataset.studyLv;
+    if (lv === "all") {
+      btn.classList.toggle("active", isAll);
+    } else {
+      btn.classList.toggle("active", !isAll && studySelectedLevels.has(lv));
+    }
+  });
+}
+
+function toggleStudyLevelChip(lv) {
+  if (lv === "all") {
+    studySelectedLevels.clear();
+  } else {
+    if (studySelectedLevels.has(lv)) {
+      studySelectedLevels.delete(lv);
+    } else {
+      studySelectedLevels.add(lv);
+    }
+    if (studySelectedLevels.size === 0 || studySelectedLevels.size === 4) {
+      studySelectedLevels.clear();
+    }
+  }
+  renderStudyLevelChips();
+}
+
 function openStudyPicker() {
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.add("hidden");
   $("#studySetupPanel")?.classList.add("hidden");
   $("#studyPickerPanel")?.classList.remove("hidden");
+  updateBackButtonVisibility();
 }
 
 function openStudySetupForMode(mode) {
@@ -1297,16 +1356,13 @@ function openStudySetupForMode(mode) {
   if (sMin && !sMin.dataset.touched) sMin.value = prefs.goalMin || 1;
   if (sMax && !sMax.dataset.touched) sMax.value = prefs.goalMax || 100;
 
+  renderStudyLevelChips();
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.add("hidden");
   $("#studyPickerPanel")?.classList.add("hidden");
   $("#studySetupPanel")?.classList.remove("hidden");
   setStudyModeTab(mode);
-}
-
-function updateQuizLayoutRowVisibility() {
-  const fmt = $("#quizFormatSelect")?.value || "spell";
-  $("#quizLayoutRow")?.classList.toggle("hidden", fmt === "spell");
+  updateBackButtonVisibility();
 }
 
 function setStudyModeTab(mode) {
@@ -1314,13 +1370,14 @@ function setStudyModeTab(mode) {
   $("#fcOptions")?.classList.toggle("hidden", mode !== "flashcard");
   $("#quizOptions")?.classList.toggle("hidden", mode !== "quiz");
   $("#listenOptions")?.classList.toggle("hidden", mode !== "listen");
+  // 確認テストはランダム出題固定のため「出題順」行を非表示
+  $("#studyOrderRow")?.classList.toggle("hidden", mode === "quiz");
 
   const setupTitle = $("#studySetupTitle");
   const startBtn = $("#btnStartStudy");
   if (mode === "quiz") {
     if (setupTitle) setupTitle.textContent = "確認テストの設定";
     if (startBtn) startBtn.textContent = "確認テストをはじめる";
-    updateQuizLayoutRowVisibility();
   } else if (mode === "listen") {
     if (setupTitle) setupTitle.textContent = "リスニングの設定";
     if (startBtn) startBtn.textContent = "リスニングをはじめる";
@@ -1335,6 +1392,7 @@ function exitStudyStages() {
   $("#quizStage")?.classList.add("hidden");
   $("#studyPickerPanel")?.classList.add("hidden");
   $("#studySetupPanel")?.classList.remove("hidden");
+  updateBackButtonVisibility();
 }
 
 function buildStudyCandidates() {
@@ -1342,26 +1400,37 @@ function buildStudyCandidates() {
   const rawMax = Number($("#studyMax")?.value || 100);
   const s = Math.min(rawMin, rawMax);
   const e = Math.max(rawMin, rawMax);
-  const lvFilter = $("#studyLevelSelect")?.value || "all";
   const order = $("#studyOrderSelect")?.value || "seq";
 
   let list = wordsData.filter((w) => {
     if (w.no < s || w.no > e) return false;
-    const lv = Number(state.levels?.[w.no] || 0);
-    if (lvFilter === "all") return true;
-    if (lvFilter === "unmastered") return lv < 3;
-    if (lvFilter === "weak") return lv === 1 || lv === 2;
-    return lv === Number(lvFilter);
+    if (studySelectedLevels.size > 0) {
+      const lv = String(Number(state.levels?.[w.no] || 0));
+      if (!studySelectedLevels.has(lv)) return false;
+    }
+    return true;
   });
 
-  if (order === "random") list = shuffleArray(list);
+  if (currentStudyMode === "quiz") {
+    const qFmt = $("#quizFormatSelect")?.value || "ja-en-type";
+    if (qFmt === "example-type") {
+      list = list.filter((w) => examplesMap.has(w.no));
+    }
+    list = shuffleArray(list);
+  } else if (order === "random") {
+    list = shuffleArray(list);
+  }
   return list;
 }
 
 function startSelectedStudyMode() {
   const candidates = buildStudyCandidates();
   if (!candidates.length) {
-    showToast("条件に一致する単語がありません");
+    if (currentStudyMode === "quiz" && ($("#quizFormatSelect")?.value === "example-type")) {
+      showToast("この範囲に例文データがありません（No.301〜600 に収録）");
+    } else {
+      showToast("条件に一致する単語がありません");
+    }
     return;
   }
 
@@ -1382,6 +1451,7 @@ function startSelectedStudyMode() {
     $("#studySetupPanel")?.classList.add("hidden");
     $("#quizStage")?.classList.add("hidden");
     $("#flashcardStage")?.classList.remove("hidden");
+    updateBackButtonVisibility();
     renderFlashcard(true);
     return;
   }
@@ -1390,10 +1460,8 @@ function startSelectedStudyMode() {
     const limit = Math.max(1, Number($("#quizLimitInput")?.value || 20));
     quizQueue = candidates.slice(0, limit);
     quizIndex = 0;
-    quizFormat = $("#quizFormatSelect")?.value || "spell";
-    quizLayout = quizFormat === "spell" ? "single" : ($("#quizLayoutSelect")?.value || "single");
+    quizFormat = $("#quizFormatSelect")?.value || "ja-en-type";
     quizAnswers = {};
-    quizListRevealed = false;
     quizIsRetest = false;
     openQuizStage();
   }
@@ -1477,28 +1545,61 @@ function renderFlashcard(allowAutoSpeak = false) {
   }
 }
 
-/* ---------- 小テスト（1問ずつ＆紙テスト向け一覧形式） ---------- */
-function getQuizPromptAndAnswer(item, format) {
-  const ex = (examplesMap.get(item.no) || [])[0] || null;
-  if (format === "ja-en") {
-    return {
-      promptHtml: escapeHtml(item.meanings.join(" ／ ")),
-      answerMain: item.word,
-      answerSub: `${item.pos ? `[${item.pos}] ` : ""}${item.meanings.join(" ／ ")}`
-    };
+/* ---------- 確認テスト＆連続正解昇格ロジック ---------- */
+function applyQuizResultToMastery(no, isCorrect) {
+  const key = String(no);
+  const prevLv = Number(state.levels?.[key] || 0);
+  if (!state.streaks) state.streaks = {};
+
+  let nextLv = prevLv;
+  let streak = Number(state.streaks[key] || 0);
+  let promoted = false;
+  let demoted = false;
+
+  if (isCorrect) {
+    if (prevLv >= 3) {
+      nextLv = 3;
+      streak = STREAK_TO_PROMOTE;
+    } else {
+      streak += 1;
+      if (streak >= STREAK_TO_PROMOTE) {
+        nextLv = prevLv <= 1 ? 2 : 3;
+        streak = 0;
+        promoted = true;
+      }
+    }
+  } else {
+    streak = 0;
+    nextLv = prevLv === 3 ? 2 : 1;
+    if (nextLv !== prevLv) demoted = true;
   }
-  if (format === "example" && ex) {
-    return {
-      promptHtml: `${formatExampleClozeHtml(ex.rawEn, item.word)}${ex.ja ? `<div style="font-size:0.84rem;color:var(--text-sub);margin-top:6px;">${escapeHtml(ex.ja)}</div>` : ""}`,
-      answerMain: item.word,
-      answerSub: item.meanings.join(" ／ ")
-    };
+
+  state.streaks[key] = streak;
+  setWordLevel(no, nextLv);
+  return { isCorrect, prevLv, nextLv, streak, promoted, demoted };
+}
+
+function renderStreakPill(el, info) {
+  if (!el) return;
+  const levelNames = ["未学習", "苦手", "うろ覚え", "定着"];
+  el.classList.toggle("promoted", Boolean(info.promoted));
+
+  if (info.promoted) {
+    el.textContent = `${STREAK_TO_PROMOTE}回連続正解！「${levelNames[info.prevLv]}」→「${levelNames[info.nextLv]}」にランクUP`;
+    return;
   }
-  return {
-    promptHtml: escapeHtml(item.word),
-    answerMain: item.meanings.join(" ／ "),
-    answerSub: `${item.pos ? `[${item.pos}] ` : ""}${ex ? ex.en : ""}`
-  };
+  if (info.isCorrect && info.nextLv >= 3) {
+    el.textContent = "現在：定着（キープ中）";
+    return;
+  }
+  if (info.isCorrect) {
+    const dots = "●".repeat(info.streak) + "○".repeat(Math.max(0, STREAK_TO_PROMOTE - info.streak));
+    const targetName = info.nextLv <= 1 ? "うろ覚え" : "定着";
+    const rem = Math.max(1, STREAK_TO_PROMOTE - info.streak);
+    el.textContent = `${dots} あと${rem}回連続正解で「${targetName}」（現在：${levelNames[info.nextLv]}）`;
+    return;
+  }
+  el.textContent = `連続正解リセット ・ 現在：${levelNames[info.nextLv]}`;
 }
 
 function openQuizStage() {
@@ -1508,62 +1609,92 @@ function openQuizStage() {
   $("#quizStage")?.classList.remove("hidden");
   $("#quizResultBox")?.classList.add("hidden");
   $("#quizRetestBadge")?.classList.toggle("hidden", !quizIsRetest);
+  updateBackButtonVisibility();
 
-  if (quizFormat === "spell") {
+  if (quizFormat === "ja-en-type" || quizFormat === "example-type") {
     $("#quizSingleBox")?.classList.add("hidden");
-    $("#quizListBox")?.classList.add("hidden");
     $("#quizProgressWrap")?.classList.remove("hidden");
     $("#quizSpellBox")?.classList.remove("hidden");
     renderSpellQuestion();
-  } else if (quizLayout === "list") {
-    $("#quizSpellBox")?.classList.add("hidden");
-    $("#quizSingleBox")?.classList.add("hidden");
-    $("#quizProgressWrap")?.classList.add("hidden");
-    $("#quizListBox")?.classList.remove("hidden");
-    renderQuizListMode();
   } else {
     $("#quizSpellBox")?.classList.add("hidden");
-    $("#quizListBox")?.classList.add("hidden");
     $("#quizProgressWrap")?.classList.remove("hidden");
     $("#quizSingleBox")?.classList.remove("hidden");
     renderQuizSingleQuestion();
   }
 }
 
-/* ---------- スペル入力テスト（アプリ内専用QWERTYキーボード） ---------- */
-function buildSpellTargetSpec(rawWord) {
+/* ---------- タイピング入力テスト（文字数非表示・先頭1文字固定表示） ---------- */
+function buildTypingSpecForWord(rawWord) {
   let cleaned = String(rawWord || "").replace(/～/g, "").trim();
-  const variants = new Set();
+  const accepted = new Set();
+
   if (/\([a-zA-Z]+\)/.test(cleaned)) {
     const withoutOpt = cleaned.replace(/\([a-zA-Z]+\)/g, "").trim();
     const withOpt = cleaned.replace(/[()]/g, "").trim();
-    variants.add(withoutOpt.replace(/[^a-zA-Z]/g, "").toLowerCase());
-    variants.add(withOpt.replace(/[^a-zA-Z]/g, "").toLowerCase());
+    accepted.add(withoutOpt.replace(/[^a-zA-Z]/g, "").toLowerCase());
+    accepted.add(withOpt.replace(/[^a-zA-Z]/g, "").toLowerCase());
     cleaned = withoutOpt;
   } else {
-    variants.add(cleaned.replace(/[^a-zA-Z]/g, "").toLowerCase());
+    accepted.add(cleaned.replace(/[^a-zA-Z]/g, "").toLowerCase());
   }
 
-  const tokens = [];
-  for (const ch of cleaned) {
-    if (/[a-zA-Z]/.test(ch)) {
-      tokens.push({ type: "char", expected: ch.toLowerCase() });
-    } else if (ch === "-" || ch === " ") {
-      tokens.push({ type: "sep", char: ch });
-    }
+  const alphaOnly = cleaned.replace(/[^a-zA-Z]/g, "").toLowerCase();
+  const firstChar = alphaOnly[0] || "";
+  return {
+    firstChar,
+    accepted: Array.from(accepted).filter(Boolean),
+    displayAnswer: rawWord
+  };
+}
+
+function buildTypingSpecForExample(item) {
+  const exList = examplesMap.get(item.no) || [];
+  const ex = exList[Math.floor(Math.random() * exList.length)] || null;
+  if (!ex) {
+    const fallback = buildTypingSpecForWord(item.word);
+    return { ...fallback, promptHtml: escapeHtml(item.meanings.join(" ／ ")), subNote: "" };
   }
-  return { tokens, accepted: Array.from(variants).filter(Boolean) };
+
+  const m = ex.rawEn.match(/\[\[([^\]]+)\]\]/);
+  if (!m) {
+    const fallback = buildTypingSpecForWord(item.word);
+    return { ...fallback, promptHtml: escapeHtml(ex.en), subNote: ex.ja };
+  }
+
+  const bracketPhrase = m[1].trim();
+  const wordsInBracket = bracketPhrase.split(/\s+/);
+  let targetToken = wordsInBracket[0];
+  if (wordsInBracket.length > 1) {
+    const headInitial = (item.word[0] || "").toLowerCase();
+    const matched = wordsInBracket.find((w) => w.toLowerCase().startsWith(headInitial));
+    if (matched) targetToken = matched;
+  }
+
+  const alphaTarget = targetToken.replace(/[^a-zA-Z]/g, "").toLowerCase();
+  const firstChar = alphaTarget[0] || (item.word[0] || "").toLowerCase();
+
+  // [[...]] 内が複数語の場合は対象語のみ空欄にし、前後の補助語はそのまま残す
+  const replacedInside = wordsInBracket
+    .map((w) => (w === targetToken ? `__BLANK__` : escapeHtml(w)))
+    .join(" ");
+  const fullEscaped = escapeHtml(ex.rawEn).replace(
+    /\[\[([^\]]+)\]\]/,
+    replacedInside.replace("__BLANK__", `<span class="cloze-blank">${escapeHtml(firstChar)}…</span>`)
+  );
+
+  return {
+    firstChar,
+    accepted: [alphaTarget],
+    displayAnswer: targetToken === item.word ? targetToken : `${targetToken}（原形: ${item.word}）`,
+    promptHtml: fullEscaped,
+    subNote: ex.ja || item.meanings.join(" ／ ")
+  };
 }
 
 function renderSpellQuestion() {
   const item = quizQueue[quizIndex];
   if (!item) return;
-
-  const spec = buildSpellTargetSpec(item.word);
-  spellTargetTokens = spec.tokens;
-  spellAcceptedWords = spec.accepted;
-  spellTypedChars = [];
-  spellJudged = false;
 
   if ($("#quizMetaText")) $("#quizMetaText").textContent = `問題 ${quizIndex + 1} / ${quizQueue.length}`;
   if ($("#quizProgressBar")) $("#quizProgressBar").style.width = `${((quizIndex + 1) / quizQueue.length) * 100}%`;
@@ -1574,81 +1705,88 @@ function renderSpellQuestion() {
     posEl.textContent = item.pos || "";
     posEl.classList.toggle("hidden", !item.pos);
   }
-  if ($("#qSpellMeaning")) $("#qSpellMeaning").textContent = item.meanings.join(" ／ ");
+
+  const meaningEl = $("#qSpellMeaning");
+  const subNoteEl = $("#qSpellSubNote");
+
+  if (quizFormat === "example-type") {
+    const exSpec = buildTypingSpecForExample(item);
+    spellFirstChar = exSpec.firstChar;
+    spellAcceptedNormalized = exSpec.accepted;
+    spellDisplayAnswer = exSpec.displayAnswer;
+    if (meaningEl) meaningEl.innerHTML = exSpec.promptHtml;
+    if (subNoteEl) {
+      subNoteEl.textContent = exSpec.subNote;
+      subNoteEl.classList.toggle("hidden", !exSpec.subNote);
+    }
+  } else {
+    const wSpec = buildTypingSpecForWord(item.word);
+    spellFirstChar = wSpec.firstChar;
+    spellAcceptedNormalized = wSpec.accepted;
+    spellDisplayAnswer = wSpec.displayAnswer;
+    if (meaningEl) meaningEl.textContent = item.meanings.join(" ／ ");
+    if (subNoteEl) {
+      subNoteEl.textContent = "";
+      subNoteEl.classList.add("hidden");
+    }
+  }
+
+  spellTypedRest = "";
+  spellJudged = false;
 
   $("#qSpellAudio")?.classList.add("hidden");
   $("#qSpellFeedback")?.classList.add("hidden");
   $("#qSpellActionRow")?.classList.remove("hidden");
   $("#qSpellKeyboard")?.classList.remove("hidden");
 
-  renderSpellSlots();
+  renderSpellInputBox(null);
 }
 
-function renderSpellSlots(markResult = null) {
-  const wrap = $("#qSpellSlots");
-  if (!wrap) return;
-  let charIdx = 0;
-  const activeIdx = spellTypedChars.length;
-
-  wrap.innerHTML = spellTargetTokens.map((tk) => {
-    if (tk.type === "sep") {
-      if (tk.char === " ") return `<span class="spell-sep is-space"></span>`;
-      return `<span class="spell-sep">${escapeHtml(tk.char)}</span>`;
-    }
-    const myIdx = charIdx++;
-    const typed = spellTypedChars[myIdx] || "";
-    let cls = "spell-slot";
-    if (markResult === true) cls += " is-correct";
-    else if (markResult === false) cls += " is-wrong";
-    else if (!spellJudged && myIdx === activeIdx) cls += " is-active";
-    return `<span class="${cls}">${escapeHtml(typed)}</span>`;
-  }).join("");
+function renderSpellInputBox(markResult = null) {
+  const box = $("#qSpellDisplayBox");
+  const firstEl = $("#qSpellFirstChar");
+  const restEl = $("#qSpellTypedRest");
+  if (firstEl) firstEl.textContent = spellFirstChar;
+  if (restEl) restEl.textContent = spellTypedRest;
+  if (box) {
+    box.classList.remove("is-correct", "is-wrong");
+    if (markResult === true) box.classList.add("is-correct");
+    else if (markResult === false) box.classList.add("is-wrong");
+  }
 }
 
 function handleSpellKeyInput(ch) {
   if (spellJudged) return;
-  const maxLen = spellTargetTokens.filter((t) => t.type === "char").length;
-  if (spellTypedChars.length >= maxLen) return;
-  spellTypedChars.push(ch.toLowerCase());
-  renderSpellSlots();
+  if (spellTypedRest.length >= 24) return;
+  spellTypedRest += ch.toLowerCase();
+  renderSpellInputBox(null);
 }
 
 function handleSpellBackspace() {
-  if (spellJudged || !spellTypedChars.length) return;
-  spellTypedChars.pop();
-  renderSpellSlots();
+  if (spellJudged || !spellTypedRest.length) return;
+  spellTypedRest = spellTypedRest.slice(0, -1);
+  renderSpellInputBox(null);
 }
 
-function handleSpellHint() {
-  if (spellJudged) return;
-  const expectedChars = spellTargetTokens.filter((t) => t.type === "char").map((t) => t.expected);
-  const idx = spellTypedChars.length;
-  if (idx < expectedChars.length) {
-    spellTypedChars.push(expectedChars[idx]);
-    renderSpellSlots();
-  }
+function handleSpellClear() {
+  if (spellJudged || !spellTypedRest.length) return;
+  spellTypedRest = "";
+  renderSpellInputBox(null);
 }
 
-function evaluateSpellSubmission(giveUp = false) {
+function evaluateSpellSubmission() {
   if (spellJudged) return;
   const item = quizQueue[quizIndex];
   if (!item) return;
 
-  const typedWord = spellTypedChars.join("").toLowerCase();
-  if (!giveUp && typedWord.length === 0) {
-    showToast("アルファベットを入力してください");
-    return;
-  }
-
   spellJudged = true;
-  const isCorrect = !giveUp && spellAcceptedWords.includes(typedWord);
-  const curLv = Number(state.levels?.[item.no] || 0);
-  const nextLv = isCorrect ? (curLv >= 2 ? 3 : 2) : 1;
+  const fullNormalized = (spellFirstChar + spellTypedRest).replace(/[^a-zA-Z]/g, "").toLowerCase();
+  const isCorrect = spellAcceptedNormalized.includes(fullNormalized);
+  const streakInfo = applyQuizResultToMastery(item.no, isCorrect);
 
-  quizAnswers[item.no] = { correct: isCorrect, level: nextLv };
-  setWordLevel(item.no, nextLv);
+  quizAnswers[item.no] = { correct: isCorrect, level: streakInfo.nextLv };
 
-  renderSpellSlots(isCorrect);
+  renderSpellInputBox(isCorrect);
   $("#qSpellActionRow")?.classList.add("hidden");
   $("#qSpellKeyboard")?.classList.add("hidden");
   $("#qSpellAudio")?.classList.remove("hidden");
@@ -1661,12 +1799,9 @@ function evaluateSpellSubmission(giveUp = false) {
   }
   const corrEl = $("#qSpellCorrectWord");
   if (corrEl) {
-    corrEl.textContent = `正解: ${item.word}`;
+    corrEl.textContent = `正解: ${spellDisplayAnswer}`;
   }
-
-  $$("[data-spell-lv]").forEach((btn) => {
-    btn.classList.toggle("selected", Number(btn.dataset.spellLv) === nextLv);
-  });
+  renderStreakPill($("#qSpellStreakInfo"), streakInfo);
 
   const nextBtn = $("#qSpellNextBtn");
   if (nextBtn) {
@@ -1687,9 +1822,11 @@ function advanceSpellQuestion() {
   }
 }
 
+/* ---------- 自己採点テスト（英単語 → 日本語） ---------- */
 function renderQuizSingleQuestion() {
   const item = quizQueue[quizIndex];
   if (!item) return;
+  singleJudged = false;
 
   const metaEl = $("#quizMetaText");
   const progEl = $("#quizProgressBar");
@@ -1697,25 +1834,43 @@ function renderQuizSingleQuestion() {
   if (progEl) progEl.style.width = `${((quizIndex + 1) / quizQueue.length) * 100}%`;
 
   if ($("#qSingleNo")) $("#qSingleNo").textContent = `No. ${item.no}`;
-  const qa = getQuizPromptAndAnswer(item, quizFormat);
-  if ($("#qSinglePrompt")) $("#qSinglePrompt").innerHTML = qa.promptHtml;
-  if ($("#qSingleAnswerMain")) $("#qSingleAnswerMain").textContent = qa.answerMain;
-  if ($("#qSingleAnswerSub")) $("#qSingleAnswerSub").textContent = qa.answerSub;
+  const ex = (examplesMap.get(item.no) || [])[0] || null;
+  if ($("#qSinglePrompt")) $("#qSinglePrompt").textContent = item.word;
+  if ($("#qSingleAnswerMain")) $("#qSingleAnswerMain").textContent = item.meanings.join(" ／ ");
+  if ($("#qSingleAnswerSub")) {
+    $("#qSingleAnswerSub").textContent = `${item.pos ? `[${item.pos}] ` : ""}${ex ? ex.en : ""}`;
+  }
 
   $("#qBtnReveal")?.classList.remove("hidden");
   $("#qSingleAnswerArea")?.classList.add("hidden");
-  $("#qManualPanel")?.classList.add("hidden");
-  $$("[data-q-override]").forEach((b) => b.classList.remove("selected"));
+  $("#qSingleJudgeBtns")?.classList.remove("hidden");
+  $("#qSingleFeedback")?.classList.add("hidden");
+
+  if (prefs.autoAudio) {
+    speakEnglish(item.word);
+  }
 }
 
-function recordSingleQuizJudge(isCorrect, overrideLv = null) {
+function recordSingleQuizJudge(isCorrect) {
+  if (singleJudged) return;
   const item = quizQueue[quizIndex];
   if (!item) return;
-  const curLv = Number(state.levels?.[item.no] || 0);
-  const nextLv = overrideLv !== null ? overrideLv : (isCorrect ? (curLv >= 2 ? 3 : 2) : 1);
-  quizAnswers[item.no] = { correct: isCorrect, level: nextLv };
-  setWordLevel(item.no, nextLv);
+  singleJudged = true;
 
+  const streakInfo = applyQuizResultToMastery(item.no, isCorrect);
+  quizAnswers[item.no] = { correct: isCorrect, level: streakInfo.nextLv };
+
+  $("#qSingleJudgeBtns")?.classList.add("hidden");
+  $("#qSingleFeedback")?.classList.remove("hidden");
+  renderStreakPill($("#qSingleStreakInfo"), streakInfo);
+
+  const nextBtn = $("#qSingleNextBtn");
+  if (nextBtn) {
+    nextBtn.textContent = quizIndex + 1 >= quizQueue.length ? "結果を見る" : "次の問題へ";
+  }
+}
+
+function advanceSingleQuizQuestion() {
   if (quizIndex + 1 < quizQueue.length) {
     quizIndex++;
     renderQuizSingleQuestion();
@@ -1724,88 +1879,9 @@ function recordSingleQuizJudge(isCorrect, overrideLv = null) {
   }
 }
 
-function renderQuizListMode() {
-  const metaEl = $("#quizMetaText");
-  if (metaEl) metaEl.textContent = `一覧形式（全 ${quizQueue.length} 問）`;
-
-  const toggleBtn = $("#qListToggleAns");
-  const finishBtn = $("#qListFinishBtn");
-  if (toggleBtn) toggleBtn.textContent = quizListRevealed ? "解答を隠す" : "解答を表示して採点";
-  finishBtn?.classList.toggle("hidden", !quizListRevealed);
-
-  const wrap = $("#quizListItems");
-  if (!wrap) return;
-
-  const speakerIcon = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
-
-  wrap.innerHTML = quizQueue.map((item, idx) => {
-    const qa = getQuizPromptAndAnswer(item, quizFormat);
-    const ansState = quizAnswers[item.no];
-    return `
-      <div class="glass-card quiz-list-row" data-qno="${item.no}">
-        <div class="fc-top-bar">
-          <span class="fc-no">問${idx + 1}（No.${item.no}）${item.pos ? ` [${escapeHtml(item.pos)}]` : ""}</span>
-          <button type="button" class="audio-pill" data-qlist-speak="${escapeHtml(item.word)}">${speakerIcon}<span>発音</span></button>
-        </div>
-        <div class="quiz-list-q">${qa.promptHtml}</div>
-        ${quizListRevealed ? `
-          <div class="ql-answer">
-            <strong>${escapeHtml(qa.answerMain)}</strong>
-            ${qa.answerSub ? `<div style="font-size:0.8rem;opacity:0.82;margin-top:2px;">${escapeHtml(qa.answerSub)}</div>` : ""}
-          </div>
-          <div class="ql-ox">
-            <button type="button" class="ox-btn wrong${ansState?.correct === false ? " selected" : ""}" data-qlist-ox="wrong" data-no="${item.no}">× 不正解</button>
-            <button type="button" class="ox-btn correct${ansState?.correct === true ? " selected" : ""}" data-qlist-ox="correct" data-no="${item.no}">○ 正解</button>
-          </div>
-          <div class="listen-rate-row" style="margin-top:6px;">
-            <button type="button" class="rate-btn lv-1-btn${ansState?.level === 1 ? " selected" : ""}" data-qlist-lv="1" data-no="${item.no}">苦手</button>
-            <button type="button" class="rate-btn lv-2-btn${ansState?.level === 2 ? " selected" : ""}" data-qlist-lv="2" data-no="${item.no}">うろ覚え</button>
-            <button type="button" class="rate-btn lv-3-btn${ansState?.level === 3 ? " selected" : ""}" data-qlist-lv="3" data-no="${item.no}">定着</button>
-          </div>
-        ` : ""}
-      </div>
-    `;
-  }).join("");
-
-  wrap.querySelectorAll("[data-qlist-speak]").forEach((btn) => {
-    btn.addEventListener("click", () => speakEnglish(btn.dataset.qlistSpeak || ""));
-  });
-
-  wrap.querySelectorAll("[data-qlist-ox]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const no = Number(btn.dataset.no);
-      const isOk = btn.dataset.qlistOx === "correct";
-      quizAnswers[no] = { correct: isOk, level: isOk ? 3 : 1 };
-      renderQuizListMode();
-    });
-  });
-
-  wrap.querySelectorAll("[data-qlist-lv]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const no = Number(btn.dataset.no);
-      const lv = Number(btn.dataset.qlistLv);
-      quizAnswers[no] = { correct: lv >= 2, level: lv };
-      renderQuizListMode();
-    });
-  });
-}
-
-function finalizeQuizListScoring() {
-  quizQueue.forEach((item) => {
-    const entry = quizAnswers[item.no];
-    if (entry) {
-      setWordLevel(item.no, entry.level);
-    } else {
-      quizAnswers[item.no] = { correct: false, level: Number(state.levels?.[item.no] || 0) };
-    }
-  });
-  showQuizResults();
-}
-
 function showQuizResults() {
   $("#quizSpellBox")?.classList.add("hidden");
   $("#quizSingleBox")?.classList.add("hidden");
-  $("#quizListBox")?.classList.add("hidden");
   $("#quizProgressWrap")?.classList.add("hidden");
   $("#quizResultBox")?.classList.remove("hidden");
 
@@ -1816,7 +1892,7 @@ function showQuizResults() {
   if ($("#quizResultScore")) $("#quizResultScore").textContent = `${correctCount} / ${total} 正解`;
   if ($("#quizResultNote")) {
     const pct = Math.round((correctCount / Math.max(1, total)) * 100);
-    $("#quizResultNote").textContent = `正答率 ${pct}% ・ 記録に反映しました`;
+    $("#quizResultNote").textContent = `正答率 ${pct}% ・ 3回連続正解で評価が1段階UPします`;
   }
 
   const retestBtn = $("#qResultRetestBtn");
@@ -1826,8 +1902,29 @@ function showQuizResults() {
 }
 
 /* =========================================================
-   交流画面（リアルタイム合言葉対戦 ＆ フレンド共有）
+   フレンド・対戦画面（2カード選択・リアルタイム対戦・フレンド共有）
    ========================================================= */
+function openBattlePicker() {
+  leaveBattleRoom();
+  $("#battleMatchPanel")?.classList.add("hidden");
+  $("#battleFriendPanel")?.classList.add("hidden");
+  $("#battlePickerPanel")?.classList.remove("hidden");
+  const titleEl = $("#headerTitle");
+  if (titleEl) titleEl.textContent = "フレンド";
+  updateBackButtonVisibility();
+}
+
+function openBattleSubPanel(panelType) {
+  $("#battlePickerPanel")?.classList.add("hidden");
+  $("#battleMatchPanel")?.classList.toggle("hidden", panelType !== "match");
+  $("#battleFriendPanel")?.classList.toggle("hidden", panelType !== "friends");
+  const titleEl = $("#headerTitle");
+  if (titleEl) titleEl.textContent = panelType === "match" ? "リアルタイム対戦" : "フレンド一覧";
+  updateSyncUi();
+  if (panelType === "friends") renderFriendsList();
+  updateBackButtonVisibility();
+}
+
 function renderBattleFriendView() {
   updateSyncUi();
   renderFriendsList();
@@ -2525,6 +2622,11 @@ function bindEvents() {
         return;
       }
     }
+    if (activeTab === "battle") {
+      if (!$("#battlePickerPanel")?.classList.contains("hidden")) return;
+      openBattlePicker();
+      return;
+    }
     switchTab("home");
   });
 
@@ -2617,14 +2719,15 @@ function bindEvents() {
     });
   });
 
-  // 学習画面モード選択＆開始
+  // 学習画面モード選択・マルチ選択チップ・開始
   $("#studyMin")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
   $("#studyMax")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
   $$("[data-pick-mode]").forEach((card) => {
     card.addEventListener("click", () => openStudySetupForMode(card.dataset.pickMode));
   });
-  $("#btnBackToModePicker")?.addEventListener("click", openStudyPicker);
-  $("#quizFormatSelect")?.addEventListener("change", updateQuizLayoutRowVisibility);
+  $$("#studyLevelChips [data-study-lv]").forEach((btn) => {
+    btn.addEventListener("click", () => toggleStudyLevelChip(btn.dataset.studyLv));
+  });
   $("#btnStartStudy")?.addEventListener("click", startSelectedStudyMode);
 
   // スペル入力専用キーボード＆物理キー対応
@@ -2632,40 +2735,32 @@ function bindEvents() {
     keyBtn.addEventListener("click", () => handleSpellKeyInput(keyBtn.dataset.key));
   });
   $("#qSpellBackBtn")?.addEventListener("click", handleSpellBackspace);
-  $("#qSpellHintBtn")?.addEventListener("click", handleSpellHint);
-  $("#qSpellGiveUpBtn")?.addEventListener("click", () => evaluateSpellSubmission(true));
-  $("#qSpellSubmitBtn")?.addEventListener("click", () => evaluateSpellSubmission(false));
+  $("#qSpellClearBtn")?.addEventListener("click", handleSpellClear);
+  $("#qSpellSubmitBtn")?.addEventListener("click", () => evaluateSpellSubmission());
   $("#qSpellNextBtn")?.addEventListener("click", advanceSpellQuestion);
   $("#qSpellAudio")?.addEventListener("click", () => {
     const item = quizQueue[quizIndex];
     if (item) speakEnglish(item.word);
   });
-  $$("[data-spell-lv]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const item = quizQueue[quizIndex];
-      if (!item) return;
-      const lv = Number(btn.dataset.spellLv);
-      quizAnswers[item.no] = { correct: lv >= 2, level: lv };
-      setWordLevel(item.no, lv);
-      $$("[data-spell-lv]").forEach((b) => b.classList.toggle("selected", b === btn));
-    });
-  });
 
   window.addEventListener("keydown", (e) => {
     if (activeTab !== "study") return;
-    if ($("#quizStage")?.classList.contains("hidden") || $("#quizSpellBox")?.classList.contains("hidden")) return;
+    if ($("#quizStage")?.classList.contains("hidden")) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-    if (/^[a-zA-Z]$/.test(e.key) && !spellJudged) {
-      e.preventDefault();
-      handleSpellKeyInput(e.key);
-    } else if (e.key === "Backspace" && !spellJudged) {
-      e.preventDefault();
-      handleSpellBackspace();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (!spellJudged) evaluateSpellSubmission(false);
-      else advanceSpellQuestion();
+    // タイピングテスト中
+    if (!$("#quizSpellBox")?.classList.contains("hidden")) {
+      if (/^[a-zA-Z]$/.test(e.key) && !spellJudged) {
+        e.preventDefault();
+        handleSpellKeyInput(e.key);
+      } else if (e.key === "Backspace" && !spellJudged) {
+        e.preventDefault();
+        handleSpellBackspace();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (!spellJudged) evaluateSpellSubmission();
+        else advanceSpellQuestion();
+      }
     }
   });
 
@@ -2731,42 +2826,22 @@ function bindEvents() {
   });
   $("#qBtnWrong")?.addEventListener("click", () => recordSingleQuizJudge(false));
   $("#qBtnCorrect")?.addEventListener("click", () => recordSingleQuizJudge(true));
-  $("#qManualToggleBtn")?.addEventListener("click", () => {
-    $("#qManualPanel")?.classList.toggle("hidden");
-  });
-  $$("[data-q-override]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const lv = Number(btn.dataset.qOverride);
-      recordSingleQuizJudge(lv >= 2, lv);
-    });
-  });
-
-  $("#qListToggleAns")?.addEventListener("click", () => {
-    quizListRevealed = !quizListRevealed;
-    renderQuizListMode();
-  });
-  $("#qListFinishBtn")?.addEventListener("click", finalizeQuizListScoring);
+  $("#qSingleNextBtn")?.addEventListener("click", advanceSingleQuizQuestion);
 
   $("#qResultRetestBtn")?.addEventListener("click", () => {
-    const wrong = quizQueue.filter((item) => !quizAnswers[item.no]?.correct);
+    const wrong = shuffleArray(quizQueue.filter((item) => !quizAnswers[item.no]?.correct));
     if (!wrong.length) return;
     quizQueue = wrong;
     quizIndex = 0;
     quizAnswers = {};
-    quizListRevealed = false;
     quizIsRetest = true;
     openQuizStage();
   });
   $("#qResultRetryBtn")?.addEventListener("click", exitStudyStages);
 
-  // 交流タブ（対戦／フレンド切替）
-  $$("#battleSubSwitch .seg-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const sub = btn.dataset.battleTab;
-      $$("#battleSubSwitch .seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
-      $("#battleMatchPanel")?.classList.toggle("hidden", sub !== "match");
-      $("#battleFriendPanel")?.classList.toggle("hidden", sub !== "friends");
-    });
+  // フレンドタブ（選択カード → 対戦／フレンド一覧）
+  $$("[data-pick-battle]").forEach((card) => {
+    card.addEventListener("click", () => openBattleSubPanel(card.dataset.pickBattle));
   });
 
   $("#btnCreateRoom")?.addEventListener("click", createBattleRoomAction);
