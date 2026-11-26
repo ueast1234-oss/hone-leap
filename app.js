@@ -613,12 +613,8 @@ function applyRemoteUserDoc(remote, user = null) {
   if (!remote) return;
   const mergedLevels = mergeRemoteLevels(remote);
   const remoteStudyLog = { ...(state.studyLog || {}), ...(remote.studyLog || {}) };
-  const mergedCount = Object.keys(mergedLevels).length;
   const today = todayKey();
-
-  if (mergedCount > 0 && (!remoteStudyLog[today] || Number(remoteStudyLog[today]) === 0)) {
-    remoteStudyLog[today] = Math.max(Number(state.studyLog?.[today] || 0), mergedCount);
-  }
+  const isRemoteToday = remote.studiedDate === today;
 
   state = {
     ...DEFAULT_STATE,
@@ -630,12 +626,12 @@ function applyRemoteUserDoc(remote, user = null) {
     levels: mergedLevels,
     streaks: { ...(state.streaks || {}), ...(remote.streaks || {}) },
     studyLog: remoteStudyLog,
-    studiedIdsToday: (Array.isArray(remote.studiedIdsToday) && remote.studiedIdsToday.length > 0)
-      ? remote.studiedIdsToday
-      : (mergedCount > 0 ? Object.keys(mergedLevels) : (state.studiedIdsToday || [])),
-    studiedDate: remote.studiedDate || today,
-    streakDays: Math.max(Number(remote.streakDays || 0), Number(state.streakDays || 0), mergedCount > 0 ? 1 : 0),
-    lastStudyDate: remote.lastStudyDate || state.lastStudyDate || (mergedCount > 0 ? today : ""),
+    studiedIdsToday: isRemoteToday
+      ? (Array.isArray(remote.studiedIdsToday) ? remote.studiedIdsToday : [])
+      : (state.studiedDate === today && Array.isArray(state.studiedIdsToday) ? state.studiedIdsToday : []),
+    studiedDate: today,
+    streakDays: Math.max(Number(remote.streakDays || 0), Number(state.streakDays || 0)),
+    lastStudyDate: remote.lastStudyDate || state.lastStudyDate || "",
     friends: remote.friends || state.friends || [],
     updatedAt: Math.max(Number(remote.updatedAt || 0), Number(state.updatedAt || 0), Date.now())
   };
