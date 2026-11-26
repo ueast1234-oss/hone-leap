@@ -239,7 +239,15 @@
             <span id="homeUserGreeting" class="sub-label">今日の学習</span>
             <h2 class="section-heading" style="margin:2px 0 0;">目標範囲の定着率</h2>
           </div>
-          <span id="homeRangeLabel" class="range-pill">No. 1 〜 100</span>
+        </div>
+
+        <div class="home-goal-bar">
+          <span class="filter-label">目標範囲</span>
+          <div class="range-inputs" style="justify-content:flex-end;">
+            <input type="number" id="homeGoalMin" class="num-input" min="1" value="1" aria-label="目標範囲の開始番号" />
+            <span>〜</span>
+            <input type="number" id="homeGoalMax" class="num-input" min="1" value="100" aria-label="目標範囲の終了番号" />
+          </div>
         </div>
 
         <div class="donut-wrap">
@@ -266,50 +274,20 @@
       <div class="action-grid">
         <button class="glass-card action-tile" type="button" data-jump="study" data-mode="flashcard">
           <span class="tile-title">フラッシュカード</span>
-          <span class="tile-desc">カードをめくって覚える</span>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
         <button class="glass-card action-tile" type="button" data-jump="study" data-mode="quiz">
           <span class="tile-title">確認テスト</span>
-          <span class="tile-desc">スペルや意味をテスト</span>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
         <button class="glass-card action-tile" type="button" data-jump="vocab" data-filter="weak">
-          <span class="tile-title">苦手を復習</span>
-          <span class="tile-desc">苦手な単語を見直す</span>
+          <span class="tile-title">苦手な単語を復習</span>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
         <button class="glass-card action-tile" type="button" data-jump="vocab" data-filter="all">
           <span class="tile-title">単語帳を開く</span>
-          <span class="tile-desc">一覧・赤シートで見る</span>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
-      </div>
-
-      <!-- 月間学習カレンダー -->
-      <div id="homeCalendarCard" class="glass-card calendar-card">
-        <div class="cal-head">
-          <h3 class="card-title">学習カレンダー</h3>
-          <div class="cal-nav">
-            <button id="calPrevBtn" class="cal-nav-btn" type="button" aria-label="前の月">‹</button>
-            <span id="calMonthLabel" class="cal-month-label">2026年 11月</span>
-            <button id="calNextBtn" class="cal-nav-btn" type="button" aria-label="次の月">›</button>
-          </div>
-        </div>
-
-        <div class="cal-weekdays" aria-hidden="true">
-          <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
-        </div>
-        <div id="calGrid" class="cal-grid"></div>
-
-        <div class="cal-foot">
-          <span id="calSelectedInfo" class="sub-label">今日：0 語</span>
-          <div class="cal-heat-legend" aria-label="学習量の目安">
-            <span class="sub-label">少</span>
-            <span class="cal-swatch cal-lv-0"></span>
-            <span class="cal-swatch cal-lv-1"></span>
-            <span class="cal-swatch cal-lv-2"></span>
-            <span class="cal-swatch cal-lv-3"></span>
-            <span class="cal-swatch cal-lv-4"></span>
-            <span class="sub-label">多</span>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -381,7 +359,7 @@
 
     <!-- ==================== 3. 学習画面 ==================== -->
     <section id="view-study" class="view">
-      <!-- ステップ1：モード選択画面 -->
+      <!-- ステップ1：モード選択画面（フラッシュカード → リスニング → 確認テスト → 筆記テスト） -->
       <div id="studyPickerPanel" class="study-picker">
         <p class="study-picker-lead">学習モードを選んでください</p>
 
@@ -395,7 +373,20 @@
           </div>
           <div class="mode-pick-body">
             <span class="mode-pick-title">フラッシュカード</span>
-            <span class="mode-pick-desc">カードをめくって意味や英語を覚える</span>
+          </div>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="glass-card mode-pick-card" type="button" data-pick-mode="listen">
+          <div class="mode-pick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            </svg>
+          </div>
+          <div class="mode-pick-body">
+            <span class="mode-pick-title">リスニング</span>
           </div>
           <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
@@ -409,7 +400,6 @@
           </div>
           <div class="mode-pick-body">
             <span class="mode-pick-title">確認テスト</span>
-            <span class="mode-pick-desc">スペル入力や一問一答で定着をチェック</span>
           </div>
           <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
@@ -425,22 +415,6 @@
           </div>
           <div class="mode-pick-body">
             <span class="mode-pick-title">筆記テスト</span>
-            <span class="mode-pick-desc">テスト用紙形式で紙に書いて実力を試す</span>
-          </div>
-          <span class="mode-pick-arrow" aria-hidden="true">›</span>
-        </button>
-
-        <button class="glass-card mode-pick-card" type="button" data-pick-mode="listen">
-          <div class="mode-pick-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-            </svg>
-          </div>
-          <div class="mode-pick-body">
-            <span class="mode-pick-title">リスニング</span>
-            <span class="mode-pick-desc">音声を連続再生して耳から覚える</span>
           </div>
           <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
@@ -748,6 +722,22 @@
         </div>
       </div>
 
+      <!-- 筆記テスト開始前スタンバイ画面 -->
+      <div id="paperReadyPanel" class="glass-card paper-ready-card hidden">
+        <div class="paper-ready-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+        </div>
+        <h3 class="section-heading" style="margin:0;">紙とペンを準備してください</h3>
+        <p class="paper-ready-desc">
+          開始するとテスト問題が一覧で表示されます。<br />手元の紙やノートに答えを書き出し、解き終わったら解答を開いて採点してください。
+        </p>
+        <span id="paperReadySummary" class="range-pill" style="align-self:center;">全 20 問 ／ 制限時間 5分</span>
+        <button id="btnStartPaperActual" class="primary-btn full-btn" type="button" style="margin-top:4px;">筆記テストをはじめる</button>
+      </div>
+
       <!-- 筆記テストステージ（テスト用紙＆自己採点） -->
       <div id="paperStage" class="study-stage hidden">
         <div class="paper-sticky-bar glass">
@@ -797,7 +787,6 @@
           </div>
           <div class="mode-pick-body">
             <span class="mode-pick-title">リアルタイム対戦</span>
-            <span class="mode-pick-desc">合言葉でルームを作って早押し4択バトル</span>
           </div>
           <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
@@ -813,7 +802,6 @@
           </div>
           <div class="mode-pick-body">
             <span class="mode-pick-title">フレンド一覧</span>
-            <span class="mode-pick-desc">フレンドの追加や学習状況の共有</span>
           </div>
           <span class="mode-pick-arrow" aria-hidden="true">›</span>
         </button>
@@ -991,6 +979,36 @@
         </div>
       </div>
 
+      <!-- 月間学習カレンダー（記録画面） -->
+      <div id="progressCalendarCard" class="glass-card calendar-card">
+        <div class="cal-head">
+          <h3 class="card-title">学習カレンダー</h3>
+          <div class="cal-nav">
+            <button id="calPrevBtn" class="cal-nav-btn" type="button" aria-label="前の月">‹</button>
+            <span id="calMonthLabel" class="cal-month-label">2026年 11月</span>
+            <button id="calNextBtn" class="cal-nav-btn" type="button" aria-label="次の月">›</button>
+          </div>
+        </div>
+
+        <div class="cal-weekdays" aria-hidden="true">
+          <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+        </div>
+        <div id="calGrid" class="cal-grid"></div>
+
+        <div class="cal-foot">
+          <span id="calSelectedInfo" class="sub-label">今日：0 語</span>
+          <div class="cal-heat-legend" aria-label="学習量の目安">
+            <span class="sub-label">少</span>
+            <span class="cal-swatch cal-lv-0"></span>
+            <span class="cal-swatch cal-lv-1"></span>
+            <span class="cal-swatch cal-lv-2"></span>
+            <span class="cal-swatch cal-lv-3"></span>
+            <span class="cal-swatch cal-lv-4"></span>
+            <span class="sub-label">多</span>
+          </div>
+        </div>
+      </div>
+
       <div class="glass-card study-setup">
         <h3 class="card-title">Part別 定着度</h3>
         <div id="unitBarsContainer" class="unit-bars"></div>
@@ -1036,14 +1054,6 @@
 
       <div class="glass-card study-setup">
         <h3 class="card-title">学習・表示設定</h3>
-        <div class="setup-row">
-          <label class="filter-label">目標範囲</label>
-          <div class="range-inputs">
-            <input type="number" id="setGoalMin" class="num-input" min="1" value="1" />
-            <span>〜</span>
-            <input type="number" id="setGoalMax" class="num-input" min="1" value="100" />
-          </div>
-        </div>
         <div class="setup-row">
           <label class="filter-label" for="setVoiceAccent">発音アクセント</label>
           <select id="setVoiceAccent" class="select-input">

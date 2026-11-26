@@ -503,6 +503,18 @@ html, body {
 .stat-pill strong,
 .stat-mini-val { font-size: 1.05rem; font-weight: 800; color: var(--text-main); }
 
+.home-goal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border-radius: var(--radius-md);
+  background: var(--chip-bg);
+  border: 1px solid var(--glass-border);
+}
+
 .action-grid,
 .quick-actions-grid {
   display: grid;
@@ -512,10 +524,11 @@ html, body {
 }
 .action-tile {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 14px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 15px 13px;
   border-radius: var(--radius-md);
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
@@ -524,8 +537,10 @@ html, body {
   box-shadow: var(--shadow-soft);
   text-align: left;
   font-family: inherit;
+  transition: transform 0.12s ease;
 }
-.tile-title { font-size: 0.92rem; font-weight: 700; }
+.action-tile:hover { transform: translateY(-1px); }
+.tile-title { font-size: 0.86rem; font-weight: 800; white-space: nowrap; }
 .tile-desc,
 .tile-sub { font-size: 0.73rem; color: var(--text-sub); }
 
@@ -1171,6 +1186,7 @@ html, body {
 
   .study-setup,
   .setup-card,
+  #paperReadyPanel,
   #flashcardStage,
   #quizStage,
   #paperStage {
@@ -1616,10 +1632,10 @@ html, body {
 }
 
 /* =========================================================
-   ホーム画面：月間学習カレンダー（ヒートマップ）
+   記録画面：月間学習カレンダー（ヒートマップ）
    ========================================================= */
 .calendar-card {
-  margin-top: 12px;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1869,4 +1885,32 @@ html, body {
 
 .paper-bottom-actions {
   margin-top: 12px;
+}
+
+.paper-ready-card {
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+.paper-ready-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: var(--chip-bg);
+  color: var(--accent-strong);
+  display: grid;
+  place-items: center;
+}
+[data-theme="matte-blue"] .paper-ready-icon,
+[data-theme="dark-slate"] .paper-ready-icon {
+  color: var(--text-main);
+}
+.paper-ready-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-sub);
+  line-height: 1.6;
 }
