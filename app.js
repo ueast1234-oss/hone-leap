@@ -77,6 +77,7 @@ const DEFAULT_PREFS = {
 };
 
 const DEFAULT_STATE = {
+  ownerUid: "",
   loginId: "",
   recoveryEmail: "",
   nickname: "",
@@ -88,7 +89,10 @@ const DEFAULT_STATE = {
   studiedDate: "",
   streakDays: 0,
   lastStudyDate: "",
-  friends: [], // [{ uid, nickname, friendId }]
+  friends: [], // [{ uid, nickname, friendId }] 相互承認済みフレンド
+  friendUids: [], // 承認済みフレンドのUID一覧
+  outgoingFriendUids: [], // 自分が申請送信中の相手UID一覧
+  outgoingFriends: [], // [{ uid, nickname, friendId }] 承認待ち表示用
   updatedAt: 0
 };
 
@@ -119,7 +123,9 @@ let firebaseReady = false;
 let currentUser = null;
 let cloudUnsubscribe = null;
 let friendReqUnsubscribe = null;
+let friendUsersReqUnsubscribe = null;
 let syncTimer = null;
+let lastSyncTimeStr = "";
 let skipRecoveryThisSession = false;
 
 let wordsData = [];
@@ -190,20 +196,28 @@ let listenState = {
   utteranceToken: 0
 };
 
-// 対戦状態
+// 対戦状態（日本語→英語スペリング早打ち固定）
 let battleRoomUnsub = null;
 let battleTimerId = null;
+let battleSpellFirstChar = "";
+let battleSpellTypedRest = "";
+let battleSpellAccepted = [];
+let battleSpellDisplayAns = "";
 let battleSession = {
   roomCode: "",
   isHost: false,
   localOnly: false,
-  format: "en-ja",
   questions: [],
   currentIndex: 0,
   answeredCurrent: false,
-  timeLeft: 10,
+  timeLeft: 15,
   players: {}
 };
+
+// 学習中ロック制御（下部ナビ・ヘッダーアイコンを隠す）
+function setStudyLockMode(locked) {
+  document.body.classList.toggle("study-locked", Boolean(locked));
+}
 
 // フレンド詳細モーダル対象
 let selectedFriend = null;
@@ -605,7 +619,8 @@ function updateSyncUi() {
   if (firebaseReady && currentUser) {
     dot?.classList.add("online");
     const dispId = state.loginId || extractLoginIdFromEmail(currentUser.email || "");
-    if (statusText) statusText.textContent = `クラウド同期中（${state.nickname || dispId || "ログイン済み"}）`;
+    const timeSuffix = lastSyncTimeStr ? ` ・ ${lastSyncTimeStr}` : "";
+    if (statusText) statusText.textContent = `クラウド同期中（${state.nickname || dispId || "ログイン済み"}）${timeSuffix}`;
     if (loginIdEl) loginIdEl.textContent = dispId || "ログイン済み";
 
     const realMail = isRealEmail(currentUser.email) ? currentUser.email : state.recoveryEmail;
@@ -640,10 +655,95 @@ function buildMasterySummary() {
   };
 }
 
+function nowTimeHHMM() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function extractNormalizedLevelsMap(remote) {
+  const out = {};
+  if (remote?.ratings && typeof remote.ratings === "object") {
+    for (const [k, v] of Object.entries(remote.ratings)) {
+      const n = Number(v);
+      if (!Number.isNaN(n)) out[k] = Math.max(0, Math.min(3, n));
+    }
+  }
+  if (remote?.levels && typeof remote.levels === "object") {
+    for (const [k, v] of Object.entries(remote.levels)) {
+      const n = Number(v);
+      if (!Number.isNaN(n)) out[k] = Math.max(0, Math.min(3, n));
+    }
+  }
+  return out;
+}
+
+function applyRemoteSnapshotToState(remote, uid, isInitialLogin = false) {
+  const sameOwner = !state.ownerUid || state.ownerUid === uid;
+  const baseLocal = sameOwner ? state : structuredClone(DEFAULT_STATE);
+  const remoteCombinedLevels = extractNormalizedLevelsMap(remote);
+
+  const mergedLevels = isInitialLogin && !state.ownerUid
+    ? { ...(baseLocal.levels || {}), ...remoteCombinedLevels }
+    : (Object.keys(remoteCombinedLevels).length > 0 ? remoteCombinedLevels : { ...(baseLocal.levels || {}) });
+
+  const mergedStreaks = isInitialLogin && !state.ownerUid
+    ? { ...(baseLocal.streaks || {}), ...(remote.streaks || {}) }
+    : { ...(remote.streaks || baseLocal.streaks || {}) };
+
+  const mergedLog = { ...(baseLocal.studyLog || {}), ...(remote.studyLog || {}) };
+  Object.keys(mergedLog).forEach((k) => {
+    mergedLog[k] = Math.max(Number(baseLocal.studyLog?.[k] || 0), Number(remote.studyLog?.[k] || 0));
+  });
+
+  const remoteFriends = Array.isArray(remote.friends) ? remote.friends : (baseLocal.friends || []);
+  const remoteFriendUids = Array.isArray(remote.friendUids)
+    ? remote.friendUids
+    : remoteFriends.map((f) => f.uid).filter(Boolean);
+
+  state = {
+    ...structuredClone(DEFAULT_STATE),
+    ownerUid: uid,
+    loginId: remote.loginId || baseLocal.loginId || extractLoginIdFromEmail(currentUser?.email || ""),
+    recoveryEmail: remote.recoveryEmail || baseLocal.recoveryEmail || "",
+    nickname: remote.nickname || baseLocal.nickname || currentUser?.displayName || "",
+    friendId: ensureFriendId(remote.friendId || remote.friendCode || baseLocal.friendId),
+    levels: mergedLevels,
+    streaks: mergedStreaks,
+    studyLog: mergedLog,
+    studiedIdsToday: remote.studiedDate === todayKey()
+      ? Array.from(new Set([...(baseLocal.studiedDate === todayKey() ? baseLocal.studiedIdsToday || [] : []), ...(remote.studiedIdsToday || [])]))
+      : (baseLocal.studiedDate === todayKey() ? baseLocal.studiedIdsToday || [] : []),
+    studiedDate: todayKey(),
+    streakDays: Math.max(Number(remote.streakDays || 0), Number(baseLocal.streakDays || 0)),
+    lastStudyDate: remote.lastStudyDate || baseLocal.lastStudyDate || "",
+    friends: remoteFriends,
+    friendUids: remoteFriendUids,
+    outgoingFriendUids: Array.isArray(remote.outgoingFriendUids) ? remote.outgoingFriendUids : (baseLocal.outgoingFriendUids || []),
+    outgoingFriends: Array.isArray(remote.outgoingFriends) ? remote.outgoingFriends : (baseLocal.outgoingFriends || []),
+    updatedAt: Math.max(Number(remote.updatedAt || 0), Date.now())
+  };
+
+  if (remote.goalMin && remote.goalMax) {
+    prefs.goalMin = Number(remote.goalMin);
+    prefs.goalMax = Number(remote.goalMax);
+    vocabMin = prefs.goalMin;
+    vocabMax = prefs.goalMax;
+    saveLocalPrefs();
+  }
+
+  normalizeDailyState();
+  saveLocalState(false);
+}
+
 async function pushCloudStateNow() {
   if (!firebaseReady || !db || !currentUser) return false;
   try {
+    state.ownerUid = currentUser.uid;
     state.friendId = ensureFriendId(state.friendId);
+    state.friendUids = Array.from(new Set([
+      ...(state.friendUids || []),
+      ...(state.friends || []).map((f) => f.uid).filter(Boolean)
+    ]));
     const payload = {
       uid: currentUser.uid,
       loginId: state.loginId || extractLoginIdFromEmail(currentUser.email || ""),
@@ -651,7 +751,10 @@ async function pushCloudStateNow() {
       nickname: state.nickname || currentUser.displayName || "",
       friendId: state.friendId,
       friendCode: state.friendId,
+      goalMin: prefs.goalMin || 1,
+      goalMax: prefs.goalMax || 100,
       levels: state.levels || {},
+      ratings: state.levels || {},
       streaks: state.streaks || {},
       studyLog: state.studyLog || {},
       studiedIdsToday: state.studiedIdsToday || [],
@@ -659,8 +762,11 @@ async function pushCloudStateNow() {
       streakDays: state.streakDays || 0,
       lastStudyDate: state.lastStudyDate || "",
       friends: state.friends || [],
+      friendUids: state.friendUids || [],
+      outgoingFriendUids: state.outgoingFriendUids || [],
+      outgoingFriends: state.outgoingFriends || [],
       summary: buildMasterySummary(),
-      updatedAt: state.updatedAt || Date.now(),
+      updatedAt: Date.now(),
       serverUpdatedAt: serverTimestamp()
     };
     await setDoc(doc(db, "users", currentUser.uid), payload, { merge: true });
@@ -674,9 +780,40 @@ async function pushCloudStateNow() {
         }, { merge: true });
       } catch (_) {}
     }
+    lastSyncTimeStr = nowTimeHHMM();
+    updateSyncUi();
     return true;
   } catch (err) {
     console.warn("Cloud sync failed:", err);
+    return false;
+  }
+}
+
+async function syncBidirectionalNow() {
+  if (!firebaseReady || !db || !currentUser) return false;
+  try {
+    const snap = await getDoc(doc(db, "users", currentUser.uid));
+    if (snap.exists()) {
+      const remote = snap.data();
+      const remoteCombinedLevels = extractNormalizedLevelsMap(remote);
+      const mergedLevels = { ...remoteCombinedLevels, ...(state.levels || {}) };
+      const mergedStreaks = { ...(remote.streaks || {}), ...(state.streaks || {}) };
+      const mergedLog = { ...(remote.studyLog || {}), ...(state.studyLog || {}) };
+      Object.keys(mergedLog).forEach((k) => {
+        mergedLog[k] = Math.max(Number(remote.studyLog?.[k] || 0), Number(state.studyLog?.[k] || 0));
+      });
+      state.levels = mergedLevels;
+      state.streaks = mergedStreaks;
+      state.studyLog = mergedLog;
+      if (!state.nickname && remote.nickname) state.nickname = remote.nickname;
+      if (remote.friendId) state.friendId = ensureFriendId(remote.friendId);
+    }
+    const ok = await pushCloudStateNow();
+    await checkOutgoingFriendApprovals();
+    renderAll();
+    return ok;
+  } catch (err) {
+    console.warn("Bidirectional sync error:", err);
     return false;
   }
 }
@@ -686,7 +823,7 @@ function scheduleCloudSync() {
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => {
     pushCloudStateNow();
-  }, 500);
+  }, 400);
 }
 
 function subscribeUserDoc(uid) {
@@ -697,46 +834,77 @@ function subscribeUserDoc(uid) {
   if (!firebaseReady || !db || !uid) return;
   cloudUnsubscribe = onSnapshot(doc(db, "users", uid), (snap) => {
     if (!snap.exists()) return;
+    if (snap.metadata.hasPendingWrites) return;
     const remote = snap.data();
-    const remoteTs = Number(remote.updatedAt || 0);
-    const localTs = Number(state.updatedAt || 0);
-    if (remoteTs > localTs) {
-      state = {
-        ...DEFAULT_STATE,
-        ...state,
-        loginId: remote.loginId || state.loginId,
-        recoveryEmail: remote.recoveryEmail || state.recoveryEmail,
-        nickname: remote.nickname ?? state.nickname,
-        friendId: ensureFriendId(remote.friendId || remote.friendCode || state.friendId),
-        levels: { ...(state.levels || {}), ...(remote.levels || {}) },
-        streaks: { ...(state.streaks || {}), ...(remote.streaks || {}) },
-        studyLog: { ...(state.studyLog || {}), ...(remote.studyLog || {}) },
-        studiedIdsToday: remote.studiedIdsToday || state.studiedIdsToday,
-        studiedDate: remote.studiedDate || state.studiedDate,
-        streakDays: remote.streakDays ?? state.streakDays,
-        lastStudyDate: remote.lastStudyDate || state.lastStudyDate,
-        friends: remote.friends || state.friends,
-        updatedAt: remoteTs
-      };
-      normalizeDailyState();
-      saveLocalState(false);
-      renderAll();
-    }
+    applyRemoteSnapshotToState(remote, uid, false);
+    lastSyncTimeStr = nowTimeHHMM();
+    renderAll();
+  }, (err) => {
+    console.warn("User snapshot listener error:", err);
   });
 }
 
+let incomingFromUsersReqs = [];
+let incomingFromCollectionReqs = [];
+
+function mergeAndRenderIncomingRequests() {
+  const approvedSet = new Set([
+    ...(state.friendUids || []),
+    ...(state.friends || []).map((f) => f.uid).filter(Boolean)
+  ]);
+  const byUid = new Map();
+  [...incomingFromUsersReqs, ...incomingFromCollectionReqs].forEach((r) => {
+    if (!r.fromUid || r.fromUid === currentUser?.uid) return;
+    if (approvedSet.has(r.fromUid)) return;
+    byUid.set(r.fromUid, r);
+  });
+  renderFriendRequests(Array.from(byUid.values()));
+}
+
 function subscribeFriendRequests(uid) {
-  if (friendReqUnsubscribe) {
-    friendReqUnsubscribe();
-    friendReqUnsubscribe = null;
-  }
+  if (friendReqUnsubscribe) { friendReqUnsubscribe(); friendReqUnsubscribe = null; }
+  if (friendUsersReqUnsubscribe) { friendUsersReqUnsubscribe(); friendUsersReqUnsubscribe = null; }
+  incomingFromUsersReqs = [];
+  incomingFromCollectionReqs = [];
   if (!firebaseReady || !db || !uid) return;
+
   try {
-    const q = query(collection(db, "friendRequests"), where("toUid", "==", uid), where("status", "==", "pending"));
-    friendReqUnsubscribe = onSnapshot(q, (snap) => {
-      const reqs = [];
-      snap.forEach((d) => reqs.push({ id: d.id, ...d.data() }));
-      renderFriendRequests(reqs);
+    const uq = query(collection(db, "users"), where("outgoingFriendUids", "array-contains", uid));
+    friendUsersReqUnsubscribe = onSnapshot(uq, (snap) => {
+      const arr = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        arr.push({
+          id: `user_${d.id}`,
+          reqDocId: "",
+          fromUid: d.id,
+          fromName: data.nickname || data.loginId || "ユーザー",
+          fromFriendId: data.friendId || data.friendCode || ""
+        });
+      });
+      incomingFromUsersReqs = arr;
+      mergeAndRenderIncomingRequests();
+    }, () => {});
+  } catch (_) {}
+
+  try {
+    const fq = query(collection(db, "friendRequests"), where("toUid", "==", uid));
+    friendReqUnsubscribe = onSnapshot(fq, (snap) => {
+      const arr = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data.status === "pending") {
+          arr.push({
+            id: d.id,
+            reqDocId: d.id,
+            fromUid: data.fromUid || "",
+            fromName: data.fromName || "ユーザー",
+            fromFriendId: data.fromFriendId || ""
+          });
+        }
+      });
+      incomingFromCollectionReqs = arr;
+      mergeAndRenderIncomingRequests();
     }, () => {});
   } catch (_) {}
 }
@@ -746,6 +914,10 @@ function setupAuthListeners() {
   onAuthStateChanged(auth, async (user) => {
     currentUser = user;
     if (user) {
+      if (state.ownerUid && state.ownerUid !== user.uid) {
+        state = structuredClone(DEFAULT_STATE);
+      }
+      state.ownerUid = user.uid;
       if (!state.loginId) {
         state.loginId = extractLoginIdFromEmail(user.email || "");
       }
@@ -755,32 +927,15 @@ function setupAuthListeners() {
       try {
         const snap = await getDoc(doc(db, "users", user.uid));
         if (snap.exists()) {
-          const remote = snap.data();
-          if (Number(remote.updatedAt || 0) >= Number(state.updatedAt || 0)) {
-            state = {
-              ...DEFAULT_STATE,
-              ...state,
-              loginId: remote.loginId || state.loginId,
-              recoveryEmail: remote.recoveryEmail || state.recoveryEmail,
-              nickname: remote.nickname || state.nickname || user.displayName || "",
-              friendId: ensureFriendId(remote.friendId || remote.friendCode || state.friendId),
-              levels: { ...(state.levels || {}), ...(remote.levels || {}) },
-              studiedIdsToday: remote.studiedIdsToday || state.studiedIdsToday,
-              studiedDate: remote.studiedDate || todayKey(),
-              streakDays: remote.streakDays ?? state.streakDays,
-              lastStudyDate: remote.lastStudyDate || state.lastStudyDate,
-              friends: remote.friends || state.friends || [],
-              updatedAt: Number(remote.updatedAt || Date.now())
-            };
-            normalizeDailyState();
-            saveLocalState(false);
-          } else {
-            scheduleCloudSync();
-          }
+          applyRemoteSnapshotToState(snap.data(), user.uid, true);
+          await pushCloudStateNow();
         } else {
-          scheduleCloudSync();
+          await pushCloudStateNow();
         }
-      } catch (_) {}
+        await checkOutgoingFriendApprovals();
+      } catch (err) {
+        console.warn("Initial auth sync error:", err);
+      }
 
       subscribeUserDoc(user.uid);
       subscribeFriendRequests(user.uid);
@@ -795,6 +950,8 @@ function setupAuthListeners() {
     } else {
       if (cloudUnsubscribe) { cloudUnsubscribe(); cloudUnsubscribe = null; }
       if (friendReqUnsubscribe) { friendReqUnsubscribe(); friendReqUnsubscribe = null; }
+      if (friendUsersReqUnsubscribe) { friendUsersReqUnsubscribe(); friendUsersReqUnsubscribe = null; }
+      lastSyncTimeStr = "";
       updateSyncUi();
       renderHomeView();
     }
@@ -1498,6 +1655,10 @@ function setStudyModeTab(mode) {
 
 function exitStudyStages() {
   clearInterval(paperTimerId);
+  setStudyLockMode(false);
+  if ("speechSynthesis" in window) {
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+  }
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.add("hidden");
   $("#paperReadyPanel")?.classList.add("hidden");
@@ -1523,7 +1684,13 @@ function buildStudyCandidates() {
     return true;
   });
 
-  if (currentStudyMode === "quiz") {
+  if (currentStudyMode === "flashcard") {
+    const fFmt = $("#fcFormatSelect")?.value || "en-ja";
+    if (fFmt === "example") {
+      list = list.filter((w) => examplesMap.has(w.no));
+    }
+    if (order === "random") list = shuffleArray(list);
+  } else if (currentStudyMode === "quiz") {
     const qFmt = $("#quizFormatSelect")?.value || "ja-en-type";
     if (qFmt === "example-type") {
       list = list.filter((w) => examplesMap.has(w.no));
@@ -1545,6 +1712,7 @@ function startSelectedStudyMode() {
   const candidates = buildStudyCandidates();
   if (!candidates.length) {
     const isExampleMode =
+      (currentStudyMode === "flashcard" && $("#fcFormatSelect")?.value === "example") ||
       (currentStudyMode === "quiz" && $("#quizFormatSelect")?.value === "example-type") ||
       (currentStudyMode === "paper" && $("#paperFormatSelect")?.value === "example");
     if (isExampleMode) {
@@ -1573,7 +1741,7 @@ function startSelectedStudyMode() {
     $("#quizStage")?.classList.add("hidden");
     $("#paperStage")?.classList.add("hidden");
     $("#flashcardStage")?.classList.remove("hidden");
-    updateBackButtonVisibility();
+    setStudyLockMode(true);
     renderFlashcard(true);
     return;
   }
@@ -1598,7 +1766,37 @@ function startSelectedStudyMode() {
   }
 }
 
-/* ---------- フラッシュカード ---------- */
+/* ---------- フラッシュカード（スワイプ・裏面確認必須・例文前後音声対応） ---------- */
+function buildExampleSpeechText(rawEn, omitBracketed = false) {
+  let s = String(rawEn || "");
+  if (omitBracketed) {
+    s = s.replace(/\[\[[^\]]+\]\]/g, ", ");
+  } else {
+    s = s.replace(/\[\[([^\]]+)\]\]/g, "$1");
+  }
+  // 補足記号 [at] 等は除去し、(for) のような丸括弧は語を残して自然な英文にする
+  s = s.replace(/\[[^\]]*\]/g, "").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+  return s;
+}
+
+function getFlashcardFrontAudioText(item) {
+  if (!item) return "";
+  const ex = (examplesMap.get(item.no) || [])[0] || null;
+  if (fcFormat === "example" && ex) {
+    return buildExampleSpeechText(ex.rawEn, true);
+  }
+  return item.word;
+}
+
+function getFlashcardBackAudioText(item) {
+  if (!item) return "";
+  const ex = (examplesMap.get(item.no) || [])[0] || null;
+  if (fcFormat === "example" && ex) {
+    return buildExampleSpeechText(ex.rawEn, false);
+  }
+  return item.word;
+}
+
 function renderFlashcard(allowAutoSpeak = false) {
   const item = fcQueue[fcIndex];
   if (!item) return;
@@ -1619,19 +1817,24 @@ function renderFlashcard(allowAutoSpeak = false) {
 
   const wordFront = $("#fcWordFront");
   const hintFront = $("#fcHintFront");
+  const frontAudioBtn = $("#fcFrontAudioBtn");
+  if (frontAudioBtn) {
+    frontAudioBtn.classList.toggle("hidden", fcFormat === "ja-en");
+  }
+
   if (wordFront) {
     if (fcFormat === "ja-en") {
       wordFront.textContent = item.meanings.join(" ／ ");
       wordFront.classList.add("is-ja");
-      if (hintFront) hintFront.textContent = "タップで英単語を表示";
+      if (hintFront) hintFront.textContent = "タップで裏面をめくる";
     } else if (fcFormat === "example" && ex) {
       wordFront.innerHTML = formatExampleClozeHtml(ex.rawEn, item.word);
       wordFront.classList.add("is-ja");
-      if (hintFront) hintFront.textContent = "タップで解答を表示";
+      if (hintFront) hintFront.textContent = "タップで裏面をめくる";
     } else {
       wordFront.textContent = item.word;
       wordFront.classList.remove("is-ja");
-      if (hintFront) hintFront.textContent = "タップで意味を表示";
+      if (hintFront) hintFront.textContent = "タップで裏面をめくる";
     }
   }
 
@@ -1666,13 +1869,42 @@ function renderFlashcard(allowAutoSpeak = false) {
     btn.classList.toggle("selected", Number(btn.dataset.rate) === lv);
   });
 
+  // 裏面をめくるまで「次へ」は押せないようにする
   const nextBtn = $("#fcNextBtn");
   if (nextBtn) {
+    nextBtn.disabled = !fcFlipped;
     nextBtn.textContent = fcIndex + 1 >= fcQueue.length ? "完了する" : "次へ";
   }
 
-  if (allowAutoSpeak && prefs.autoAudio && fcFormat === "en-ja" && !fcFlipped) {
-    speakEnglish(item.word);
+  if (allowAutoSpeak && prefs.autoAudio) {
+    if (!fcFlipped) {
+      if (fcFormat === "en-ja") {
+        speakEnglish(item.word);
+      } else if (fcFormat === "example" && ex) {
+        speakEnglish(buildExampleSpeechText(ex.rawEn, true));
+      }
+    } else {
+      if (fcFormat === "example" && ex) {
+        speakEnglish(buildExampleSpeechText(ex.rawEn, false));
+      } else if (fcFormat === "ja-en") {
+        speakEnglish(item.word);
+      }
+    }
+  }
+}
+
+function advanceFlashcardNext() {
+  if (!fcFlipped) {
+    showToast("裏面をめくってから次へ進めます");
+    return;
+  }
+  if (fcIndex + 1 < fcQueue.length) {
+    fcIndex++;
+    fcFlipped = false;
+    renderFlashcard(true);
+  } else {
+    exitStudyStages();
+    showToast("フラッシュカード学習が完了しました！");
   }
 }
 
@@ -1740,7 +1972,7 @@ function openQuizStage() {
   $("#quizStage")?.classList.remove("hidden");
   $("#quizResultBox")?.classList.add("hidden");
   $("#quizRetestBadge")?.classList.toggle("hidden", !quizIsRetest);
-  updateBackButtonVisibility();
+  setStudyLockMode(true);
 
   if (quizFormat === "ja-en-type" || quizFormat === "example-type") {
     $("#quizSingleBox")?.classList.add("hidden");
@@ -2011,6 +2243,8 @@ function advanceSingleQuizQuestion() {
 }
 
 function showQuizResults() {
+  setStudyLockMode(false);
+  updateBackButtonVisibility();
   $("#quizSpellBox")?.classList.add("hidden");
   $("#quizSingleBox")?.classList.add("hidden");
   $("#quizProgressWrap")?.classList.add("hidden");
@@ -2068,6 +2302,7 @@ function openPaperStage(timerSec = 0) {
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.add("hidden");
   $("#paperStage")?.classList.remove("hidden");
+  setStudyLockMode(true);
 
   $("#paperResultBox")?.classList.add("hidden");
   $("#paperSheetBox")?.classList.remove("hidden");
@@ -2176,6 +2411,8 @@ function revealPaperAnswers() {
 }
 
 function finishPaperScoring() {
+  setStudyLockMode(false);
+  updateBackButtonVisibility();
   let correctCount = 0;
   paperQueue.forEach((item) => {
     const isOk = paperMarks[item.no] === true;
@@ -2200,7 +2437,7 @@ function finishPaperScoring() {
 }
 
 /* =========================================================
-   フレンド・対戦画面（2カード選択・リアルタイム対戦・フレンド共有）
+   フレンド・対戦画面（日本語→英語スペリング固定対戦 ＆ 相互承認フレンド）
    ========================================================= */
 function openBattlePicker() {
   leaveBattleRoom();
@@ -2219,7 +2456,10 @@ function openBattleSubPanel(panelType) {
   const titleEl = $("#headerTitle");
   if (titleEl) titleEl.textContent = panelType === "match" ? "リアルタイム対戦" : "フレンド一覧";
   updateSyncUi();
-  if (panelType === "friends") renderFriendsList();
+  if (panelType === "friends") {
+    checkOutgoingFriendApprovals().then(() => renderFriendsList());
+    renderFriendsList();
+  }
   updateBackButtonVisibility();
 }
 
@@ -2228,24 +2468,22 @@ function renderBattleFriendView() {
   renderFriendsList();
 }
 
-function buildBattleQuestions(minNo, maxNo, count, format) {
+function buildBattleQuestions(minNo, maxNo, count) {
   const s = Math.min(minNo, maxNo);
   const e = Math.max(minNo, maxNo);
   const pool = wordsData.filter((w) => w.no >= s && w.no <= e);
-  const source = pool.length >= 4 ? pool : wordsData;
+  const source = pool.length >= 1 ? pool : wordsData;
   const picked = shuffleArray(source).slice(0, count);
 
   return picked.map((target) => {
-    const distractors = shuffleArray(source.filter((w) => w.no !== target.no)).slice(0, 3);
-    const options = shuffleArray([target, ...distractors]).map((opt) => ({
-      no: opt.no,
-      label: format === "ja-en" ? opt.word : opt.meanings[0] || opt.rawMeaning
-    }));
+    const spec = buildTypingSpecForWord(target.word);
     return {
       no: target.no,
-      prompt: format === "ja-en" ? target.meanings.join(" ／ ") : target.word,
-      answerNo: target.no,
-      options
+      pos: target.pos || "",
+      prompt: target.meanings.join(" ／ "),
+      answerWord: target.word,
+      firstChar: spec.firstChar,
+      accepted: spec.accepted
     };
   });
 }
@@ -2262,8 +2500,7 @@ async function createBattleRoomAction() {
   const minNo = Number($("#battleMin")?.value || 1);
   const maxNo = Number($("#battleMax")?.value || 100);
   const count = Number($("#battleCount")?.value || 10);
-  const format = $("#battleFormat")?.value || "en-ja";
-  const questions = buildBattleQuestions(minNo, maxNo, count, format);
+  const questions = buildBattleQuestions(minNo, maxNo, count);
   if (!questions.length) {
     showToast("問題を作成できませんでした");
     return;
@@ -2279,11 +2516,10 @@ async function createBattleRoomAction() {
     roomCode: code,
     isHost: true,
     localOnly: !(firebaseReady && db && currentUser),
-    format,
     questions,
     currentIndex: 0,
     answeredCurrent: false,
-    timeLeft: 10,
+    timeLeft: 15,
     players
   };
 
@@ -2296,7 +2532,7 @@ async function createBattleRoomAction() {
         minNo,
         maxNo,
         count,
-        format,
+        format: "ja-en-spell",
         questions,
         players,
         createdAt: serverTimestamp()
@@ -2307,7 +2543,7 @@ async function createBattleRoomAction() {
     }
   }
 
-  showBattleWaitingRoom(minNo, maxNo, count, format);
+  showBattleWaitingRoom(minNo, maxNo, count);
 }
 
 async function joinBattleRoomAction() {
@@ -2340,17 +2576,16 @@ async function joinBattleRoomAction() {
       roomCode: code,
       isHost: data.hostId === pid,
       localOnly: false,
-      format: data.format || "en-ja",
       questions: data.questions || [],
       currentIndex: 0,
       answeredCurrent: false,
-      timeLeft: 10,
+      timeLeft: 15,
       players: updatedPlayers
     };
 
-    showBattleWaitingRoom(data.minNo || 1, data.maxNo || 100, data.count || 10, data.format || "en-ja");
+    showBattleWaitingRoom(data.minNo || 1, data.maxNo || 100, data.count || 10);
     subscribeBattleRoom(code);
-  } catch (err) {
+  } catch (_) {
     showToast("ルーム参加に失敗しました");
   }
 }
@@ -2375,7 +2610,7 @@ function subscribeBattleRoom(code) {
   });
 }
 
-function showBattleWaitingRoom(minNo, maxNo, count, format) {
+function showBattleWaitingRoom(minNo, maxNo, count) {
   $("#battleLobby")?.classList.add("hidden");
   $("#battlePlayStage")?.classList.add("hidden");
   $("#battleResultBox")?.classList.add("hidden");
@@ -2383,9 +2618,8 @@ function showBattleWaitingRoom(minNo, maxNo, count, format) {
 
   if ($("#battleRoomCodeDisplay")) $("#battleRoomCodeDisplay").textContent = battleSession.roomCode;
   if ($("#battleRoomMeta")) {
-    const fmtLabel = format === "ja-en" ? "日本語 → 英語" : "英語 → 日本語";
     const modeNote = battleSession.localOnly ? "（一人練習モード）" : "";
-    $("#battleRoomMeta").textContent = `範囲 No.${minNo}〜${maxNo} ／ ${count}問 ／ ${fmtLabel} ${modeNote}`;
+    $("#battleRoomMeta").textContent = `範囲 No.${minNo}〜${maxNo} ／ ${count}問 ／ 日本語 → 英語スペル ${modeNote}`;
   }
 
   $("#btnStartBattleMatch")?.classList.toggle("hidden", !battleSession.isHost);
@@ -2419,6 +2653,7 @@ function beginBattlePlayLoop() {
   $("#battleLobby")?.classList.add("hidden");
   $("#battleResultBox")?.classList.add("hidden");
   $("#battlePlayStage")?.classList.remove("hidden");
+  setStudyLockMode(true);
   battleSession.currentIndex = 0;
   renderBattleQuestion();
 }
@@ -2431,6 +2666,19 @@ function renderBattleScoreboard() {
     .join("");
 }
 
+function renderBattleSpellBox(markResult = null) {
+  const box = $("#battleSpellDisplayBox");
+  const firstEl = $("#battleSpellFirstChar");
+  const restEl = $("#battleSpellTypedRest");
+  if (firstEl) firstEl.textContent = battleSpellFirstChar;
+  if (restEl) restEl.textContent = battleSpellTypedRest;
+  if (box) {
+    box.classList.remove("is-correct", "is-wrong");
+    if (markResult === true) box.classList.add("is-correct");
+    else if (markResult === false) box.classList.add("is-wrong");
+  }
+}
+
 function renderBattleQuestion() {
   clearInterval(battleTimerId);
   const q = battleSession.questions[battleSession.currentIndex];
@@ -2439,52 +2687,75 @@ function renderBattleQuestion() {
     return;
   }
 
+  // 旧ルームデータ互換フォールバック
+  const fallbackSpec = (!q.firstChar || !q.accepted) ? buildTypingSpecForWord(q.answerWord || q.prompt || "") : null;
+  battleSpellFirstChar = q.firstChar || fallbackSpec?.firstChar || "";
+  battleSpellAccepted = q.accepted || fallbackSpec?.accepted || [];
+  battleSpellDisplayAns = q.answerWord || "";
+  battleSpellTypedRest = "";
+
   battleSession.answeredCurrent = false;
-  battleSession.timeLeft = 10;
+  battleSession.timeLeft = 15;
 
   renderBattleScoreboard();
   if ($("#battleQCounter")) $("#battleQCounter").textContent = `${battleSession.currentIndex + 1} / ${battleSession.questions.length}`;
   if ($("#battleQNo")) $("#battleQNo").textContent = `No. ${q.no}`;
+  const posEl = $("#battleQPos");
+  if (posEl) {
+    posEl.textContent = q.pos || "";
+    posEl.classList.toggle("hidden", !q.pos);
+  }
   if ($("#battlePrompt")) $("#battlePrompt").textContent = q.prompt;
-  if ($("#battleTimerText")) $("#battleTimerText").textContent = "10秒";
+  if ($("#battleTimerText")) $("#battleTimerText").textContent = "15秒";
   if ($("#battleTimerBar")) $("#battleTimerBar").style.width = "100%";
 
-  const choicesWrap = $("#battleChoices");
-  if (choicesWrap) {
-    choicesWrap.innerHTML = q.options.map((opt) => `
-      <button type="button" class="battle-choice-btn" data-choice-no="${opt.no}">
-        ${escapeHtml(opt.label)}
-      </button>
-    `).join("");
-
-    choicesWrap.querySelectorAll(".battle-choice-btn").forEach((btn) => {
-      btn.addEventListener("click", () => handleBattleChoice(Number(btn.dataset.choiceNo), btn));
-    });
-  }
+  $("#battleSpellFeedback")?.classList.add("hidden");
+  $("#battleSpellActionRow")?.classList.remove("hidden");
+  $("#battleSpellKeyboard")?.classList.remove("hidden");
+  renderBattleSpellBox(null);
 
   battleTimerId = setInterval(() => {
     battleSession.timeLeft = Math.max(0, battleSession.timeLeft - 1);
     if ($("#battleTimerText")) $("#battleTimerText").textContent = `${battleSession.timeLeft}秒`;
-    if ($("#battleTimerBar")) $("#battleTimerBar").style.width = `${battleSession.timeLeft * 10}%`;
+    if ($("#battleTimerBar")) $("#battleTimerBar").style.width = `${(battleSession.timeLeft / 15) * 100}%`;
     if (battleSession.timeLeft <= 0) {
       clearInterval(battleTimerId);
-      advanceBattleQuestion();
+      submitBattleSpelling(true);
     }
   }, 1000);
 }
 
-async function handleBattleChoice(pickedNo, btnEl) {
+function handleBattleKeyInput(ch) {
+  if (battleSession.answeredCurrent) return;
+  if (battleSpellTypedRest.length >= 24) return;
+  battleSpellTypedRest += ch.toLowerCase();
+  renderBattleSpellBox(null);
+}
+
+function handleBattleBackspace() {
+  if (battleSession.answeredCurrent || !battleSpellTypedRest.length) return;
+  battleSpellTypedRest = battleSpellTypedRest.slice(0, -1);
+  renderBattleSpellBox(null);
+}
+
+function handleBattleClear() {
+  if (battleSession.answeredCurrent || !battleSpellTypedRest.length) return;
+  battleSpellTypedRest = "";
+  renderBattleSpellBox(null);
+}
+
+async function submitBattleSpelling(timedOut = false) {
   if (battleSession.answeredCurrent) return;
   battleSession.answeredCurrent = true;
   clearInterval(battleTimerId);
 
-  const q = battleSession.questions[battleSession.currentIndex];
-  const isCorrect = pickedNo === q.answerNo;
+  const fullNormalized = (battleSpellFirstChar + battleSpellTypedRest).replace(/[^a-zA-Z]/g, "").toLowerCase();
+  const isCorrect = !timedOut && battleSpellAccepted.includes(fullNormalized);
   const pid = myPlayerId();
+  let bonus = 0;
 
   if (isCorrect) {
-    btnEl.classList.add("is-correct");
-    const bonus = 10 + Math.max(0, battleSession.timeLeft);
+    bonus = 10 + Math.max(0, battleSession.timeLeft);
     const prev = battleSession.players[pid]?.score || 0;
     battleSession.players[pid] = { name: myPlayerName(), score: prev + bonus };
 
@@ -2496,15 +2767,24 @@ async function handleBattleChoice(pickedNo, btnEl) {
         });
       } catch (_) {}
     }
-  } else {
-    btnEl.classList.add("is-wrong");
-    $$("#battleChoices .battle-choice-btn").forEach((b) => {
-      if (Number(b.dataset.choiceNo) === q.answerNo) b.classList.add("is-correct");
-    });
   }
 
+  renderBattleSpellBox(isCorrect);
   renderBattleScoreboard();
-  setTimeout(advanceBattleQuestion, 750);
+  $("#battleSpellActionRow")?.classList.add("hidden");
+  $("#battleSpellKeyboard")?.classList.add("hidden");
+  $("#battleSpellFeedback")?.classList.remove("hidden");
+
+  const badge = $("#battleSpellJudgeBadge");
+  if (badge) {
+    badge.textContent = isCorrect ? `○ 正解！ (+${bonus}pt)` : (timedOut ? "時間切れ" : "× 不正解");
+    badge.className = `spell-judge-badge ${isCorrect ? "ok" : "ng"}`;
+  }
+  if ($("#battleSpellCorrectWord")) {
+    $("#battleSpellCorrectWord").textContent = `正解: ${battleSpellDisplayAns}`;
+  }
+
+  setTimeout(advanceBattleQuestion, 950);
 }
 
 function advanceBattleQuestion() {
@@ -2518,6 +2798,8 @@ function advanceBattleQuestion() {
 
 function finishBattleMatch() {
   clearInterval(battleTimerId);
+  setStudyLockMode(false);
+  updateBackButtonVisibility();
   $("#battlePlayStage")?.classList.add("hidden");
   $("#battleResultBox")?.classList.remove("hidden");
   renderBattleResults();
@@ -2537,14 +2819,73 @@ function renderBattleResults() {
 
 function leaveBattleRoom() {
   clearInterval(battleTimerId);
+  setStudyLockMode(false);
   if (battleRoomUnsub) { battleRoomUnsub(); battleRoomUnsub = null; }
   $("#battleWaitingRoom")?.classList.add("hidden");
   $("#battlePlayStage")?.classList.add("hidden");
   $("#battleResultBox")?.classList.add("hidden");
   $("#battleLobby")?.classList.remove("hidden");
+  updateBackButtonVisibility();
 }
 
-/* ---------- フレンド機能 ---------- */
+/* ---------- フレンド機能（相互承認必須） ---------- */
+async function checkOutgoingFriendApprovals() {
+  if (!firebaseReady || !db || !currentUser) return;
+  const pending = state.outgoingFriends || [];
+  if (!pending.length) return;
+
+  let changed = false;
+  const remainingOut = [];
+  const remainingUids = [];
+
+  for (const item of pending) {
+    if (!item.uid) continue;
+    try {
+      const snap = await getDoc(doc(db, "users", item.uid));
+      if (!snap.exists()) {
+        remainingOut.push(item);
+        remainingUids.push(item.uid);
+        continue;
+      }
+      const rData = snap.data();
+      const approvedMe =
+        (Array.isArray(rData.friendUids) && rData.friendUids.includes(currentUser.uid)) ||
+        (Array.isArray(rData.friends) && rData.friends.some((f) => f.uid === currentUser.uid || f.friendId === state.friendId));
+
+      if (approvedMe) {
+        if (!(state.friends || []).some((f) => f.uid === item.uid || f.friendId === item.friendId)) {
+          state.friends.push({
+            uid: item.uid,
+            nickname: rData.nickname || item.nickname || item.friendId,
+            friendId: rData.friendId || item.friendId
+          });
+        }
+        if (!(state.friendUids || []).includes(item.uid)) {
+          state.friendUids.push(item.uid);
+        }
+        changed = true;
+      } else {
+        remainingOut.push({
+          uid: item.uid,
+          nickname: rData.nickname || item.nickname || item.friendId,
+          friendId: rData.friendId || item.friendId
+        });
+        remainingUids.push(item.uid);
+      }
+    } catch (_) {
+      remainingOut.push(item);
+      remainingUids.push(item.uid);
+    }
+  }
+
+  if (changed || remainingUids.length !== (state.outgoingFriendUids || []).length) {
+    state.outgoingFriends = remainingOut;
+    state.outgoingFriendUids = remainingUids;
+    saveLocalState(true);
+    await pushCloudStateNow();
+  }
+}
+
 async function sendFriendRequestAction() {
   let targetCode = ($("#friendAddInput")?.value || "").trim().toUpperCase();
   if (!targetCode) {
@@ -2554,52 +2895,81 @@ async function sendFriendRequestAction() {
   if (!targetCode.startsWith("HN-")) targetCode = `HN-${targetCode}`;
 
   if (targetCode === state.friendId) {
-    showToast("自分のフレンドIDは登録できません");
+    showToast("自分のフレンドIDは申請できません");
     return;
   }
   if ((state.friends || []).some((f) => f.friendId === targetCode)) {
     showToast("すでにフレンド登録済みです");
     return;
   }
-
-  if (firebaseReady && db && currentUser) {
-    try {
-      const q = query(collection(db, "users"), where("friendId", "==", targetCode));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const friendDoc = snap.docs[0];
-        const fData = friendDoc.data();
-        await addDoc(collection(db, "friendRequests"), {
-          fromUid: currentUser.uid,
-          fromName: myPlayerName(),
-          fromFriendId: state.friendId,
-          toUid: friendDoc.id,
-          status: "pending",
-          createdAt: serverTimestamp()
-        });
-        state.friends.push({
-          uid: friendDoc.id,
-          nickname: fData.nickname || fData.loginId || targetCode,
-          friendId: targetCode
-        });
-        saveLocalState(true);
-        if ($("#friendAddInput")) $("#friendAddInput").value = "";
-        renderFriendsList();
-        showToast("フレンド申請を送信し、一覧に追加しました");
-        return;
-      }
-    } catch (_) {}
+  if ((state.outgoingFriends || []).some((f) => f.friendId === targetCode)) {
+    showToast("すでに申請済みです（相手の承認待ち）");
+    return;
+  }
+  if (!firebaseReady || !db || !currentUser) {
+    showToast("フレンド申請にはログインが必要です");
+    return;
   }
 
-  state.friends.push({
-    uid: "",
-    nickname: `フレンド (${targetCode})`,
-    friendId: targetCode
-  });
-  saveLocalState(true);
-  if ($("#friendAddInput")) $("#friendAddInput").value = "";
-  renderFriendsList();
-  showToast("フレンドIDを登録しました");
+  try {
+    let snap = await getDocs(query(collection(db, "users"), where("friendId", "==", targetCode)));
+    if (snap.empty) {
+      snap = await getDocs(query(collection(db, "users"), where("friendCode", "==", targetCode)));
+    }
+    if (snap.empty) {
+      showToast("該当するフレンドIDが見つかりません");
+      return;
+    }
+
+    const friendDoc = snap.docs[0];
+    const fData = friendDoc.data();
+    const targetUid = friendDoc.id;
+    const targetName = fData.nickname || fData.loginId || targetCode;
+
+    // 相手がすでに自分に申請していた／自分を承認していた場合はその場で相互フレンド成立
+    const alreadyRequestedMe =
+      (Array.isArray(fData.outgoingFriendUids) && fData.outgoingFriendUids.includes(currentUser.uid)) ||
+      (Array.isArray(fData.friendUids) && fData.friendUids.includes(currentUser.uid));
+
+    if (alreadyRequestedMe) {
+      state.friends.push({ uid: targetUid, nickname: targetName, friendId: targetCode });
+      if (!state.friendUids.includes(targetUid)) state.friendUids.push(targetUid);
+      saveLocalState(true);
+      await pushCloudStateNow();
+      if ($("#friendAddInput")) $("#friendAddInput").value = "";
+      mergeAndRenderIncomingRequests();
+      renderFriendsList();
+      showToast(`${targetName} さんとフレンドになりました！`);
+      return;
+    }
+
+    // 相手が承認するまでは outgoing（承認待ち）にのみ保持し、friends には入れない
+    if (!Array.isArray(state.outgoingFriendUids)) state.outgoingFriendUids = [];
+    if (!Array.isArray(state.outgoingFriends)) state.outgoingFriends = [];
+    if (!state.outgoingFriendUids.includes(targetUid)) state.outgoingFriendUids.push(targetUid);
+    state.outgoingFriends.push({ uid: targetUid, nickname: targetName, friendId: targetCode });
+
+    saveLocalState(true);
+    await pushCloudStateNow();
+
+    try {
+      await addDoc(collection(db, "friendRequests"), {
+        fromUid: currentUser.uid,
+        fromName: myPlayerName(),
+        fromFriendId: state.friendId,
+        toUid: targetUid,
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+    } catch (_) {}
+
+    if ($("#friendAddInput")) $("#friendAddInput").value = "";
+    renderFriendsList();
+    showToast("フレンド申請を送りました（相手の承認後に閲覧できます）");
+  } catch (err) {
+    console.warn("Friend request error:", err);
+    showToast("申請の送信に失敗しました");
+  }
 }
 
 function renderFriendRequests(reqs = []) {
@@ -2617,25 +2987,32 @@ function renderFriendRequests(reqs = []) {
         <strong>${escapeHtml(r.fromName || "ユーザー")}</strong>
         <div class="sub-label">${escapeHtml(r.fromFriendId || "")}</div>
       </div>
-      <button type="button" class="primary-btn" data-accept-req="${r.id}">承認</button>
+      <button type="button" class="primary-btn" data-accept-uid="${escapeHtml(r.fromUid)}">承認</button>
     </div>
   `).join("");
 
-  listEl.querySelectorAll("[data-accept-req]").forEach((btn) => {
+  listEl.querySelectorAll("[data-accept-uid]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const req = reqs.find((x) => x.id === btn.dataset.acceptReq);
+      const req = reqs.find((x) => x.fromUid === btn.dataset.acceptUid);
       if (!req) return;
-      if (!(state.friends || []).some((f) => f.friendId === req.fromFriendId)) {
+      if (!(state.friends || []).some((f) => f.uid === req.fromUid || f.friendId === req.fromFriendId)) {
         state.friends.push({
-          uid: req.fromUid || "",
+          uid: req.fromUid,
           nickname: req.fromName || req.fromFriendId,
           friendId: req.fromFriendId
         });
-        saveLocalState(true);
       }
-      if (firebaseReady && db) {
-        try { await updateDoc(doc(db, "friendRequests", req.id), { status: "accepted" }); } catch (_) {}
+      if (!Array.isArray(state.friendUids)) state.friendUids = [];
+      if (req.fromUid && !state.friendUids.includes(req.fromUid)) {
+        state.friendUids.push(req.fromUid);
       }
+      saveLocalState(true);
+      await pushCloudStateNow();
+
+      if (firebaseReady && db && req.reqDocId) {
+        try { await updateDoc(doc(db, "friendRequests", req.reqDocId), { status: "accepted" }); } catch (_) {}
+      }
+      mergeAndRenderIncomingRequests();
       renderFriendsList();
       showToast("フレンド申請を承認しました");
     });
@@ -2643,11 +3020,45 @@ function renderFriendRequests(reqs = []) {
 }
 
 function renderFriendsList() {
+  // 1) 承認待ち（送信済み）リストの描画（タップしても進捗は見られない）
+  const outCard = $("#friendPendingOutCard");
+  const outList = $("#friendPendingOutList");
+  const pendingOut = state.outgoingFriends || [];
+  if (outCard && outList) {
+    if (!pendingOut.length) {
+      outCard.classList.add("hidden");
+    } else {
+      outCard.classList.remove("hidden");
+      outList.innerHTML = pendingOut.map((p) => `
+        <div class="friend-row">
+          <div>
+            <strong>${escapeHtml(p.nickname || "ユーザー")}</strong>
+            <div class="sub-label">${escapeHtml(p.friendId || "")} ・ 承認待ち</div>
+          </div>
+          <button type="button" class="text-btn" data-cancel-out="${escapeHtml(p.uid)}">取消</button>
+        </div>
+      `).join("");
+
+      outList.querySelectorAll("[data-cancel-out]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const targetUid = btn.dataset.cancelOut;
+          state.outgoingFriends = (state.outgoingFriends || []).filter((x) => x.uid !== targetUid);
+          state.outgoingFriendUids = (state.outgoingFriendUids || []).filter((u) => u !== targetUid);
+          saveLocalState(true);
+          await pushCloudStateNow();
+          renderFriendsList();
+          showToast("申請を取り消しました");
+        });
+      });
+    }
+  }
+
+  // 2) 承認済みフレンド一覧
   const listEl = $("#friendList");
   if (!listEl) return;
   const friends = state.friends || [];
   if (!friends.length) {
-    listEl.innerHTML = `<p class="setting-desc" style="text-align:center;margin:8px 0;">フレンドがまだいません</p>`;
+    listEl.innerHTML = `<p class="setting-desc" style="text-align:center;margin:8px 0;">承認済みのフレンドがまだいません</p>`;
     return;
   }
   listEl.innerHTML = friends.map((f, idx) => `
@@ -2656,7 +3067,7 @@ function renderFriendsList() {
         <strong>${escapeHtml(f.nickname || "フレンド")}</strong>
         <div class="sub-label">${escapeHtml(f.friendId || f.friendCode || "")}</div>
       </div>
-      <span class="sub-label">進捗を見る ›</span>
+      <span class="sub-label">記録を見る ›</span>
     </button>
   `).join("");
 
@@ -2669,30 +3080,53 @@ function renderFriendsList() {
 }
 
 async function openFriendDetailModal(friend) {
-  selectedFriend = friend;
+  if (!firebaseReady || !db || !currentUser) {
+    showToast("フレンドの記録を表示するにはログインが必要です");
+    return;
+  }
+
+  let remoteData = null;
+  let remoteUid = friend.uid || "";
+  try {
+    if (remoteUid) {
+      const snap = await getDoc(doc(db, "users", remoteUid));
+      if (snap.exists()) remoteData = snap.data();
+    } else if (friend.friendId) {
+      const q = query(collection(db, "users"), where("friendId", "==", friend.friendId));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        remoteUid = snap.docs[0].id;
+        remoteData = snap.docs[0].data();
+      }
+    }
+  } catch (_) {}
+
+  if (!remoteData) {
+    showToast("フレンドのデータを取得できませんでした");
+    return;
+  }
+
+  // 相互承認ガード：相手側も自分を承認済み（または申請元）でなければ閲覧不可
+  const mutuallyApproved =
+    (Array.isArray(remoteData.friendUids) && remoteData.friendUids.includes(currentUser.uid)) ||
+    (Array.isArray(remoteData.friends) && remoteData.friends.some((f) => f.uid === currentUser.uid || f.friendId === state.friendId)) ||
+    (Array.isArray(remoteData.outgoingFriendUids) && remoteData.outgoingFriendUids.includes(currentUser.uid));
+
+  if (!mutuallyApproved) {
+    showToast("相手がフレンド申請を承認すると閲覧できます");
+    return;
+  }
+
+  selectedFriend = { ...friend, uid: remoteUid };
   const modal = $("#friendDetailModal");
   if (!modal) return;
   modal.classList.remove("hidden");
 
-  let remoteData = null;
-  if (firebaseReady && db) {
-    try {
-      if (friend.uid) {
-        const snap = await getDoc(doc(db, "users", friend.uid));
-        if (snap.exists()) remoteData = snap.data();
-      } else if (friend.friendId) {
-        const q = query(collection(db, "users"), where("friendId", "==", friend.friendId));
-        const snap = await getDocs(q);
-        if (!snap.empty) remoteData = snap.docs[0].data();
-      }
-    } catch (_) {}
-  }
-
-  const name = remoteData?.nickname || friend.nickname || "フレンド";
-  const fid = remoteData?.friendId || friend.friendId || "HN-XXXXXX";
-  const fLevels = remoteData?.levels || {};
-  const todayCnt = remoteData?.studiedDate === todayKey() ? (remoteData?.studiedIdsToday?.length || 0) : 0;
-  const streak = remoteData?.streakDays || 0;
+  const name = remoteData.nickname || friend.nickname || "フレンド";
+  const fid = remoteData.friendId || friend.friendId || "HN-XXXXXX";
+  const fLevels = extractNormalizedLevelsMap(remoteData);
+  const todayCnt = remoteData.studiedDate === todayKey() ? (remoteData.studiedIdsToday?.length || 0) : 0;
+  const streak = remoteData.streakDays || 0;
 
   if ($("#fdName")) $("#fdName").textContent = name;
   if ($("#fdFriendId")) $("#fdFriendId").textContent = fid;
@@ -2949,6 +3383,7 @@ function bindEvents() {
     if (sMin && !sMin.dataset.touched) sMin.value = prefs.goalMin;
     if (sMax && !sMax.dataset.touched) sMax.value = prefs.goalMax;
     saveLocalPrefs();
+    scheduleCloudSync();
     renderHomeView();
   };
   $("#homeGoalMin")?.addEventListener("change", onHomeGoalChange);
@@ -3079,12 +3514,10 @@ function bindEvents() {
   });
 
   window.addEventListener("keydown", (e) => {
-    if (activeTab !== "study") return;
-    if ($("#quizStage")?.classList.contains("hidden")) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-    // タイピングテスト中
-    if (!$("#quizSpellBox")?.classList.contains("hidden")) {
+    // 1) 確認テストのタイピング入力中
+    if (activeTab === "study" && !$("#quizStage")?.classList.contains("hidden") && !$("#quizSpellBox")?.classList.contains("hidden")) {
       if (/^[a-zA-Z]$/.test(e.key) && !spellJudged) {
         e.preventDefault();
         handleSpellKeyInput(e.key);
@@ -3096,24 +3529,102 @@ function bindEvents() {
         if (!spellJudged) evaluateSpellSubmission();
         else advanceSpellQuestion();
       }
+      return;
+    }
+
+    // 2) リアルタイム対戦のタイピング入力中
+    if (activeTab === "battle" && !$("#battlePlayStage")?.classList.contains("hidden")) {
+      if (/^[a-zA-Z]$/.test(e.key) && !battleSession.answeredCurrent) {
+        e.preventDefault();
+        handleBattleKeyInput(e.key);
+      } else if (e.key === "Backspace" && !battleSession.answeredCurrent) {
+        e.preventDefault();
+        handleBattleBackspace();
+      } else if (e.key === "Enter" && !battleSession.answeredCurrent) {
+        e.preventDefault();
+        submitBattleSpelling(false);
+      }
     }
   });
 
-  // フラッシュカード操作
+  // フラッシュカード操作（タップでめくる・裏面確認後に次へ・スワイプ対応）
   $("#btnExitFc")?.addEventListener("click", exitStudyStages);
-  $("#flashcardBox")?.addEventListener("click", () => {
-    fcFlipped = !fcFlipped;
-    renderFlashcard(false);
+
+  let fcTouchStartX = 0;
+  let fcTouchStartY = 0;
+  let fcSwipeHandled = false;
+
+  const fcBoxEl = $("#flashcardBox");
+  fcBoxEl?.addEventListener("touchstart", (e) => {
+    const t = e.changedTouches?.[0];
+    if (!t) return;
+    fcTouchStartX = t.clientX;
+    fcTouchStartY = t.clientY;
+    fcSwipeHandled = false;
+  }, { passive: true });
+
+  fcBoxEl?.addEventListener("touchend", (e) => {
+    const t = e.changedTouches?.[0];
+    if (!t) return;
+    const dx = t.clientX - fcTouchStartX;
+    const dy = t.clientY - fcTouchStartY;
+    if (Math.abs(dx) >= 48 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      fcSwipeHandled = true;
+      if (dx < 0) {
+        advanceFlashcardNext();
+      } else if (fcIndex > 0) {
+        fcIndex--;
+        fcFlipped = false;
+        renderFlashcard(true);
+      }
+    }
   });
+
+  let fcMouseDownX = null;
+  let fcMouseDownY = null;
+  fcBoxEl?.addEventListener("mousedown", (e) => {
+    fcMouseDownX = e.clientX;
+    fcMouseDownY = e.clientY;
+    fcSwipeHandled = false;
+  });
+  fcBoxEl?.addEventListener("mouseup", (e) => {
+    if (fcMouseDownX === null) return;
+    const dx = e.clientX - fcMouseDownX;
+    const dy = e.clientY - fcMouseDownY;
+    fcMouseDownX = null;
+    fcMouseDownY = null;
+    if (Math.abs(dx) >= 56 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      fcSwipeHandled = true;
+      if (dx < 0) {
+        advanceFlashcardNext();
+      } else if (fcIndex > 0) {
+        fcIndex--;
+        fcFlipped = false;
+        renderFlashcard(true);
+      }
+    }
+  });
+
+  fcBoxEl?.addEventListener("click", () => {
+    if (fcSwipeHandled) {
+      fcSwipeHandled = false;
+      return;
+    }
+    const nextFlip = !fcFlipped;
+    fcFlipped = nextFlip;
+    // めくった瞬間の自動音声（特に例文穴埋めの全文再生＆日→英の発音）を発火
+    renderFlashcard(nextFlip);
+  });
+
   $("#fcFrontAudioBtn")?.addEventListener("click", (e) => {
     e.stopPropagation();
     const item = fcQueue[fcIndex];
-    if (item) speakEnglish(item.word);
+    if (item) speakEnglish(getFlashcardFrontAudioText(item));
   });
   $("#fcAudioBtn")?.addEventListener("click", (e) => {
     e.stopPropagation();
     const item = fcQueue[fcIndex];
-    if (item) speakEnglish(item.word);
+    if (item) speakEnglish(getFlashcardBackAudioText(item));
   });
   $$("#fcBack [data-rate]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -3121,14 +3632,7 @@ function bindEvents() {
       const item = fcQueue[fcIndex];
       if (!item) return;
       setWordLevel(item.no, Number(btn.dataset.rate));
-      if (fcIndex + 1 < fcQueue.length) {
-        fcIndex++;
-        fcFlipped = false;
-        renderFlashcard(true);
-      } else {
-        exitStudyStages();
-        showToast("フラッシュカード学習が完了しました！");
-      }
+      advanceFlashcardNext();
     });
   });
   $("#fcPrevBtn")?.addEventListener("click", () => {
@@ -3138,16 +3642,7 @@ function bindEvents() {
       renderFlashcard(true);
     }
   });
-  $("#fcNextBtn")?.addEventListener("click", () => {
-    if (fcIndex + 1 < fcQueue.length) {
-      fcIndex++;
-      fcFlipped = false;
-      renderFlashcard(true);
-    } else {
-      exitStudyStages();
-      showToast("フラッシュカード学習が完了しました！");
-    }
-  });
+  $("#fcNextBtn")?.addEventListener("click", advanceFlashcardNext);
 
   // 小テスト操作
   $("#btnExitQuiz")?.addEventListener("click", exitStudyStages);
@@ -3200,8 +3695,18 @@ function bindEvents() {
   $("#btnCreateRoom")?.addEventListener("click", createBattleRoomAction);
   $("#btnJoinRoom")?.addEventListener("click", joinBattleRoomAction);
   $("#btnLeaveRoom")?.addEventListener("click", leaveBattleRoom);
+  $("#btnExitBattlePlay")?.addEventListener("click", leaveBattleRoom);
   $("#btnBattleBackLobby")?.addEventListener("click", leaveBattleRoom);
   $("#btnStartBattleMatch")?.addEventListener("click", hostStartBattleMatch);
+
+  // 対戦用スペリングキーボード操作
+  $$("#battleSpellKeyboard [data-bkey]").forEach((keyBtn) => {
+    keyBtn.addEventListener("click", () => handleBattleKeyInput(keyBtn.dataset.bkey));
+  });
+  $("#battleSpellBackBtn")?.addEventListener("click", handleBattleBackspace);
+  $("#battleSpellClearBtn")?.addEventListener("click", handleBattleClear);
+  $("#battleSpellSubmitBtn")?.addEventListener("click", () => submitBattleSpelling(false));
+
   $("#btnCopyRoomCode")?.addEventListener("click", async () => {
     if (!battleSession.roomCode) return;
     try {
@@ -3221,30 +3726,44 @@ function bindEvents() {
       showToast(`フレンドID: ${state.friendId}`);
     }
   });
-  $("#btnRefreshFriends")?.addEventListener("click", () => {
+  $("#btnRefreshFriends")?.addEventListener("click", async () => {
+    await checkOutgoingFriendApprovals();
     renderFriendsList();
     showToast("フレンド一覧を更新しました");
   });
   $("#btnCloseFriendModal")?.addEventListener("click", () => {
     $("#friendDetailModal")?.classList.add("hidden");
   });
-  $("#btnRemoveFriend")?.addEventListener("click", () => {
+  $("#btnRemoveFriend")?.addEventListener("click", async () => {
     if (!selectedFriend) return;
-    state.friends = (state.friends || []).filter((f) => f.friendId !== selectedFriend.friendId);
+    state.friends = (state.friends || []).filter((f) => f.friendId !== selectedFriend.friendId && f.uid !== selectedFriend.uid);
+    if (selectedFriend.uid) {
+      state.friendUids = (state.friendUids || []).filter((u) => u !== selectedFriend.uid);
+    }
     saveLocalState(true);
+    await pushCloudStateNow();
     $("#friendDetailModal")?.classList.add("hidden");
     renderFriendsList();
     showToast("フレンドを解除しました");
   });
 
-  // 設定画面
+  // 設定画面＆ネットワーク復帰時の自動同期
   $("#btnManualSync")?.addEventListener("click", async () => {
     if (!firebaseReady || !currentUser) {
       showToast("クラウド同期にはログインが必要です");
       return;
     }
-    const ok = await pushCloudStateNow();
-    showToast(ok ? "クラウドと同期しました" : "同期に失敗しました");
+    const ok = await syncBidirectionalNow();
+    showToast(ok ? "クラウドと双方向同期しました" : "同期に失敗しました（通信状態をご確認ください）");
+  });
+
+  window.addEventListener("online", () => {
+    if (firebaseReady && currentUser) syncBidirectionalNow();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && firebaseReady && currentUser) {
+      syncBidirectionalNow();
+    }
   });
 
   $("#btnOpenRecoveryModal")?.addEventListener("click", () => {
@@ -3275,7 +3794,11 @@ function bindEvents() {
     if (firebaseReady && auth && currentUser) {
       await signOut(auth);
       currentUser = null;
+      state = structuredClone(DEFAULT_STATE);
+      state.friendId = ensureFriendId("");
+      saveLocalState(false);
       updateSyncUi();
+      renderAll();
       showToast("ログアウトしました");
     } else {
       $("#authGateError").textContent = "";

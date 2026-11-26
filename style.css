@@ -840,46 +840,43 @@ html, body {
   transform: translateX(-50%);
   width: calc(100% - 28px);
   max-width: calc(var(--max-w) - 28px);
-  bottom: calc(var(--nav-h) + max(16px, env(safe-area-inset-bottom)));
+  bottom: calc(var(--nav-h) + max(14px, env(safe-area-inset-bottom)));
   z-index: 92;
   display: grid;
-  grid-template-columns: auto minmax(0, 1.05fr) minmax(0, 1.25fr);
+  grid-template-columns: 48px minmax(0, 1.05fr) minmax(0, 1.25fr) 30px;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 10px 12px;
   border-radius: 18px;
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-soft);
 }
 .red-bar-label {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  color: var(--text-main);
+  color: var(--text-sub);
   white-space: nowrap;
-  padding-right: 4px;
+  line-height: 1.1;
 }
 .red-toggle-col {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: flex-start;
+  padding-left: 4px;
 }
-.red-col-caption {
-  font-size: 0.68rem;
-  font-weight: 800;
-  color: var(--text-sub);
-  line-height: 1.1;
+.red-col-en,
+.red-col-ja {
+  min-width: 0;
 }
 .red-switch {
   position: relative;
-  width: 46px;
-  height: 26px;
+  width: 58px;
+  height: 32px;
   padding: 0;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.38);
-  background: rgba(148, 163, 184, 0.32);
+  border: 1.5px solid rgba(148, 163, 184, 0.42);
+  background: rgba(148, 163, 184, 0.34);
   cursor: pointer;
   transition: background-color 0.18s ease, border-color 0.18s ease;
 }
@@ -887,11 +884,11 @@ html, body {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 20px;
-  height: 20px;
+  width: 25px;
+  height: 25px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.24);
   transition: transform 0.18s ease;
 }
 .red-switch.active {
@@ -899,7 +896,7 @@ html, body {
   border-color: var(--red-sheet-bg);
 }
 .red-switch.active .red-switch-knob {
-  transform: translateX(20px);
+  transform: translateX(26px);
 }
 
 /* =========================================================
@@ -1217,13 +1214,26 @@ html, body {
   .bottom-nav { max-width: 640px; bottom: 16px; }
   .nav-tab { flex-direction: row; gap: 6px; font-size: 0.8rem; }
   .floating-red-bar {
-    left: auto;
-    right: 28px;
-    width: 360px;
-    max-width: calc(100vw - 380px);
+    left: max(calc(50% - 460px + 28px + 326px), 354px);
+    right: max(calc(50% - 460px + 28px), 28px);
+    width: auto;
+    max-width: none;
     transform: none;
     bottom: calc(var(--nav-h) + 24px);
   }
+}
+
+/* 学習・対戦セッション中の下部メニュー＆ヘッダーロック制御 */
+body.study-locked .bottom-nav {
+  display: none !important;
+}
+body.study-locked #btnBack,
+body.study-locked #btnSettings {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+body.study-locked .app-shell {
+  padding-bottom: 32px;
 }
 
 /* =========================================================

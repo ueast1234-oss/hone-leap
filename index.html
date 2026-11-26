@@ -150,7 +150,7 @@
       <div class="donut-wrap">
         <svg id="friendDonutSvg" class="donut-svg" viewBox="0 0 120 120"></svg>
         <div class="donut-center">
-          <span class="donut-label">定着率</span>
+          <span class="donut-label">定着</span>
           <strong id="friendMasteryPct" class="donut-pct">0%</strong>
         </div>
       </div>
@@ -171,7 +171,7 @@
   <div id="listenOverlay" class="listen-overlay hidden">
     <div class="listen-top">
       <span id="listenCounter" class="fc-no">1 / 100</span>
-      <button id="btnExitListen" class="sub-btn" type="button">終了</button>
+      <button id="btnExitListen" class="sub-btn" type="button">中断</button>
     </div>
 
     <div class="thin-progress-track" style="max-width:500px;width:100%;margin:8px auto 0;">
@@ -237,7 +237,7 @@
         <div class="hero-head">
           <div>
             <span id="homeUserGreeting" class="sub-label">今日の学習</span>
-            <h2 class="section-heading" style="margin:2px 0 0;">目標範囲の定着率</h2>
+            <h2 class="section-heading" style="margin:2px 0 0;">目標範囲の定着度</h2>
           </div>
         </div>
 
@@ -338,23 +338,6 @@
       </div>
 
       <div id="vocabList" class="vocab-list"></div>
-
-      <!-- 赤シート切替バー（左：赤シート ／ 英語の下・日本語の下にトグルスイッチ） -->
-      <div id="floatingRedBar" class="floating-red-bar glass hidden" role="region" aria-label="赤シート切替">
-        <span class="red-bar-label">赤シート</span>
-        <div class="red-toggle-col">
-          <span class="red-col-caption">英語</span>
-          <button id="toggleRedEn" class="red-switch" type="button" role="switch" aria-checked="false" aria-label="英語の赤シート">
-            <span class="red-switch-knob"></span>
-          </button>
-        </div>
-        <div class="red-toggle-col">
-          <span class="red-col-caption">日本語</span>
-          <button id="toggleRedJa" class="red-switch" type="button" role="switch" aria-checked="false" aria-label="日本語の赤シート">
-            <span class="red-switch-knob"></span>
-          </button>
-        </div>
-      </div>
     </section>
 
     <!-- ==================== 3. 学習画面 ==================== -->
@@ -539,7 +522,7 @@
       <div id="flashcardStage" class="study-stage hidden">
         <div class="stage-meta">
           <span id="fcCounter">1 / 20</span>
-          <button id="btnExitFc" class="text-btn" type="button">終了</button>
+          <button id="btnExitFc" class="text-btn" type="button">中断</button>
         </div>
         <div class="thin-progress-track">
           <div id="fcProgressBar" class="thin-progress-fill" style="width:0%;"></div>
@@ -603,7 +586,7 @@
             <span id="quizMetaText">問題 1 / 20</span>
             <span id="quizRetestBadge" class="pos-badge hidden">解き直し</span>
           </div>
-          <button id="btnExitQuiz" class="text-btn" type="button">終了</button>
+          <button id="btnExitQuiz" class="text-btn" type="button">中断</button>
         </div>
         <div id="quizProgressWrap" class="thin-progress-track">
           <div id="quizProgressBar" class="thin-progress-fill" style="width:0%;"></div>
@@ -745,7 +728,7 @@
             <span id="paperMetaTitle" class="paper-meta-title">全 20 問</span>
             <span id="paperTimerBadge" class="paper-timer-badge hidden">残り 05:00</span>
           </div>
-          <button id="btnExitPaper" class="text-btn" type="button">終了</button>
+          <button id="btnExitPaper" class="text-btn" type="button">中断</button>
         </div>
 
         <div id="paperGradingHelper" class="paper-grading-helper hidden">
@@ -807,7 +790,7 @@
         </button>
       </div>
 
-      <!-- A. リアルタイム対戦パネル -->
+      <!-- A. リアルタイム対戦パネル（日本語→英語スペリング固定） -->
       <div id="battleMatchPanel" class="battle-panel hidden">
         <div id="battleLobby" class="battle-stack">
           <div class="glass-card study-setup">
@@ -826,13 +809,6 @@
                 <option value="10" selected>10問</option>
                 <option value="15">15問</option>
                 <option value="20">20問</option>
-              </select>
-            </div>
-            <div class="setup-row">
-              <label class="filter-label" for="battleFormat">問題形式</label>
-              <select id="battleFormat" class="select-input">
-                <option value="en-ja" selected>英語 → 日本語（4択）</option>
-                <option value="ja-en">日本語 → 英語（4択）</option>
               </select>
             </div>
             <button id="btnCreateRoom" class="primary-btn full-btn" type="button">
@@ -880,21 +856,78 @@
           </p>
         </div>
 
-        <!-- 対戦中ステージ -->
+        <!-- 対戦中ステージ（日本語→英語スペリング早打ち固定） -->
         <div id="battlePlayStage" class="study-stage hidden">
           <div id="battleScoreboard" class="battle-scoreboard"></div>
           <div class="stage-meta">
             <span id="battleQCounter">1 / 10</span>
-            <span id="battleTimerText">10秒</span>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span id="battleTimerText">15秒</span>
+              <button id="btnExitBattlePlay" class="text-btn" type="button">中断</button>
+            </div>
           </div>
           <div class="thin-progress-track">
             <div id="battleTimerBar" class="thin-progress-fill" style="width: 100%;"></div>
           </div>
 
-          <div class="glass-card battle-question-card">
-            <span id="battleQNo" class="fc-no">No. 1</span>
-            <div id="battlePrompt" class="quiz-prompt">achieve</div>
-            <div id="battleChoices" class="battle-choices"></div>
+          <div class="spell-stage">
+            <div class="glass-card battle-question-card">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span id="battleQNo" class="fc-no">No. 1</span>
+                <span id="battleQPos" class="pos-badge">動</span>
+              </div>
+              <div id="battlePrompt" class="spell-meaning">達成する</div>
+
+              <div id="battleSpellDisplayBox" class="spell-input-box" aria-live="polite">
+                <span id="battleSpellFirstChar" class="spell-first-char">a</span><span id="battleSpellTypedRest" class="spell-typed-rest"></span><span class="spell-cursor"></span>
+              </div>
+
+              <div id="battleSpellFeedback" class="spell-feedback hidden">
+                <div id="battleSpellJudgeBadge" class="spell-judge-badge">○ 正解</div>
+                <div id="battleSpellCorrectWord" class="spell-correct-word"></div>
+              </div>
+
+              <div id="battleSpellActionRow" class="spell-action-single">
+                <button id="battleSpellSubmitBtn" class="primary-btn full-btn" type="button">判定する</button>
+              </div>
+            </div>
+
+            <div id="battleSpellKeyboard" class="qwerty-board glass">
+              <div class="qwerty-row">
+                <button type="button" class="q-key" data-bkey="q">q</button>
+                <button type="button" class="q-key" data-bkey="w">w</button>
+                <button type="button" class="q-key" data-bkey="e">e</button>
+                <button type="button" class="q-key" data-bkey="r">r</button>
+                <button type="button" class="q-key" data-bkey="t">t</button>
+                <button type="button" class="q-key" data-bkey="y">y</button>
+                <button type="button" class="q-key" data-bkey="u">u</button>
+                <button type="button" class="q-key" data-bkey="i">i</button>
+                <button type="button" class="q-key" data-bkey="o">o</button>
+                <button type="button" class="q-key" data-bkey="p">p</button>
+              </div>
+              <div class="qwerty-row qwerty-row-mid">
+                <button type="button" class="q-key" data-bkey="a">a</button>
+                <button type="button" class="q-key" data-bkey="s">s</button>
+                <button type="button" class="q-key" data-bkey="d">d</button>
+                <button type="button" class="q-key" data-bkey="f">f</button>
+                <button type="button" class="q-key" data-bkey="g">g</button>
+                <button type="button" class="q-key" data-bkey="h">h</button>
+                <button type="button" class="q-key" data-bkey="j">j</button>
+                <button type="button" class="q-key" data-bkey="k">k</button>
+                <button type="button" class="q-key" data-bkey="l">l</button>
+              </div>
+              <div class="qwerty-row">
+                <button type="button" id="battleSpellClearBtn" class="q-key q-key-fn" title="クリア">クリア</button>
+                <button type="button" class="q-key" data-bkey="z">z</button>
+                <button type="button" class="q-key" data-bkey="x">x</button>
+                <button type="button" class="q-key" data-bkey="c">c</button>
+                <button type="button" class="q-key" data-bkey="v">v</button>
+                <button type="button" class="q-key" data-bkey="b">b</button>
+                <button type="button" class="q-key" data-bkey="n">n</button>
+                <button type="button" class="q-key" data-bkey="m">m</button>
+                <button type="button" id="battleSpellBackBtn" class="q-key q-key-fn" aria-label="1文字消す">⌫</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -909,9 +942,9 @@
       <!-- B. フレンドパネル -->
       <div id="battleFriendPanel" class="battle-panel hidden">
         <div class="glass-card study-setup">
-          <h3 class="card-title">フレンドを追加</h3>
+          <h3 class="card-title">フレンド申請</h3>
           <p class="setting-desc" style="margin-bottom:4px;">
-            相手のフレンドIDを入力して追加・申請できます。
+            相手のフレンドIDを入力して申請できます（相手が承認すると学習状況が見られます）。
           </p>
           <div class="inline-edit-row">
             <input
@@ -922,7 +955,7 @@
               placeholder="フレンドID（例：HN-A1B2C3）"
               style="text-transform: uppercase;"
             />
-            <button id="btnSendFriendReq" class="primary-btn" type="button">申請する</button>
+            <button id="btnSendFriendReq" class="primary-btn" type="button">申請</button>
           </div>
           <div class="room-code-box" style="margin-top:4px;">
             <div>
@@ -936,6 +969,11 @@
         <div id="friendRequestsCard" class="glass-card study-setup hidden">
           <h3 class="card-title">届いているフレンド申請</h3>
           <div id="friendRequestsList" class="friend-list"></div>
+        </div>
+
+        <div id="friendPendingOutCard" class="glass-card study-setup hidden">
+          <h3 class="card-title">承認待ちの申請</h3>
+          <div id="friendPendingOutList" class="friend-list"></div>
         </div>
 
         <div class="glass-card study-setup">
@@ -1116,6 +1154,21 @@
         <button id="btnSendFeedback" class="primary-btn full-btn" type="button">送信する</button>
       </div>
     </section>
+  </div>
+
+  <!-- ==================== 赤シート切替バー（左：赤シート ／ 英語列の下・日本語列の下に大きめトグル） ==================== -->
+  <div id="floatingRedBar" class="floating-red-bar glass hidden" role="region" aria-label="赤シート切替">
+    <span class="red-bar-label">赤シート</span>
+    <div class="red-toggle-col red-col-en">
+      <button id="toggleRedEn" class="red-switch" type="button" role="switch" aria-checked="false" aria-label="英語の赤シート">
+        <span class="red-switch-knob"></span>
+      </button>
+    </div>
+    <div class="red-toggle-col red-col-ja">
+      <button id="toggleRedJa" class="red-switch" type="button" role="switch" aria-checked="false" aria-label="日本語の赤シート">
+        <span class="red-switch-knob"></span>
+      </button>
+    </div>
   </div>
 
   <!-- ==================== 下部ナビゲーション（5タブ） ==================== -->
