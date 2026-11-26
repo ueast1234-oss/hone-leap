@@ -592,64 +592,82 @@ html, body {
   font-family: inherit;
 }
 
-/* 習熟度チップ：文字なし・横一列・色分け */
+/* 習熟度チップ：文字入り・横一列・色分け */
 .level-chips {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   padding: 2px 0;
 }
 
 .level-chip {
   flex: 1 1 0;
   min-width: 0;
-  height: 26px;
-  padding: 0;
+  height: 31px;
+  padding: 0 4px;
   border-radius: 999px;
-  border: 2px solid transparent;
+  border: 1.5px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--text-main);
   cursor: pointer;
   font-family: inherit;
-  transition: transform 0.12s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
 .level-chip[data-level="all"] {
-  background: rgba(75, 114, 145, 0.35);
-  border-color: var(--accent);
+  background: rgba(75, 114, 145, 0.16);
+  border-color: rgba(75, 114, 145, 0.55);
+  color: var(--accent-strong);
 }
 
 .level-chip[data-level="0"] {
-  background: rgba(148, 163, 184, 0.45);
+  background: rgba(148, 163, 184, 0.22);
   border-color: var(--lv-0);
+  color: #475569;
 }
 
 .level-chip[data-level="1"] {
-  background: rgba(224, 82, 82, 0.35);
-  border-color: var(--lv-1);
+  background: rgba(224, 82, 82, 0.16);
+  border-color: rgba(224, 82, 82, 0.65);
+  color: #c53a3a;
 }
 
 .level-chip[data-level="2"] {
-  background: rgba(229, 154, 36, 0.38);
-  border-color: var(--lv-2);
+  background: rgba(229, 154, 36, 0.18);
+  border-color: rgba(229, 154, 36, 0.72);
+  color: #a86806;
 }
 
 .level-chip[data-level="3"] {
-  background: rgba(46, 158, 102, 0.35);
-  border-color: var(--lv-3);
+  background: rgba(46, 158, 102, 0.16);
+  border-color: rgba(46, 158, 102, 0.65);
+  color: #1d7a4c;
+}
+
+[data-theme="matte-blue"] .level-chip,
+[data-theme="dark-slate"] .level-chip {
+  color: var(--text-main);
 }
 
 .level-chip.active {
   transform: translateY(-1px);
-  box-shadow: 0 0 0 2px var(--glass-bg-strong), 0 4px 10px rgba(15, 28, 42, 0.22);
+  color: #ffffff !important;
+  box-shadow: 0 0 0 2px var(--glass-bg-strong), 0 4px 10px rgba(15, 28, 42, 0.2);
 }
 
-.level-chip[data-level="all"].active { background: var(--accent); }
-.level-chip[data-level="0"].active { background: var(--lv-0); }
-.level-chip[data-level="1"].active { background: var(--lv-1); }
-.level-chip[data-level="2"].active { background: var(--lv-2); }
-.level-chip[data-level="3"].active { background: var(--lv-3); }
+.level-chip[data-level="all"].active { background: var(--accent); border-color: var(--accent); }
+.level-chip[data-level="0"].active { background: #64748b; border-color: #64748b; }
+.level-chip[data-level="1"].active { background: var(--lv-1); border-color: var(--lv-1); }
+.level-chip[data-level="2"].active { background: var(--lv-2); border-color: var(--lv-2); }
+.level-chip[data-level="3"].active { background: var(--lv-3); border-color: var(--lv-3); }
 
 .vocab-listen-bar {
   display: flex;
@@ -1301,4 +1319,216 @@ html, body {
 [data-theme="matte-blue"] .ex-highlight,
 [data-theme="dark-slate"] .ex-highlight {
   color: var(--accent);
+}
+
+/* =========================================================
+   学習モード選択画面（3カード）＆スペル入力専用キーボード
+   ========================================================= */
+.study-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+.study-picker-lead {
+  margin: 2px 2px 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+.mode-pick-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 16px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-main);
+  font-family: inherit;
+  transition: transform 0.14s ease, box-shadow 0.16s ease;
+}
+.mode-pick-card:hover {
+  transform: translateY(-1px);
+}
+.mode-pick-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--chip-bg);
+  color: var(--accent-strong);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+[data-theme="matte-blue"] .mode-pick-icon,
+[data-theme="dark-slate"] .mode-pick-icon {
+  color: var(--text-main);
+}
+.mode-pick-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.mode-pick-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+.mode-pick-desc {
+  font-size: 0.78rem;
+  color: var(--text-sub);
+}
+.mode-pick-arrow {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-sub);
+  opacity: 0.7;
+}
+.study-setup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+/* スペル入力（QWERTY専用キーボード） */
+.spell-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.spell-meaning {
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.45;
+  margin: 8px 0 6px;
+  word-break: break-word;
+}
+.spell-slots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 5px;
+  min-height: 50px;
+  padding: 10px 6px;
+  border-radius: var(--radius-md);
+  background: var(--chip-bg);
+  user-select: none;
+}
+.spell-slot {
+  width: 26px;
+  height: 36px;
+  border-bottom: 2.5px solid rgba(100, 116, 139, 0.48);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.24rem;
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--text-main);
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+.spell-slot.is-active {
+  border-bottom-color: var(--accent);
+  background: rgba(75, 114, 145, 0.14);
+  border-radius: 6px 6px 0 0;
+}
+.spell-slot.is-correct {
+  border-bottom-color: var(--lv-3);
+  color: var(--lv-3);
+}
+.spell-slot.is-wrong {
+  border-bottom-color: var(--lv-1);
+  color: var(--lv-1);
+}
+.spell-sep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 12px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-sub);
+}
+.spell-sep.is-space {
+  width: 14px;
+}
+.spell-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+.spell-feedback {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(120, 145, 170, 0.3);
+  text-align: center;
+}
+.spell-judge-badge {
+  font-size: 1rem;
+  font-weight: 800;
+}
+.spell-judge-badge.ok { color: var(--lv-3); }
+.spell-judge-badge.ng { color: var(--lv-1); }
+.spell-correct-word {
+  margin-top: 4px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.qwerty-board {
+  padding: 10px 6px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  user-select: none;
+}
+.qwerty-row {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+.qwerty-row-mid {
+  padding: 0 12px;
+}
+.q-key {
+  flex: 1 1 0;
+  max-width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 9px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-strong);
+  color: var(--text-main);
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.09);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+.q-key:active {
+  transform: scale(0.94);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.q-key.q-key-fn {
+  flex: 1.45 1 0;
+  max-width: 64px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  background: var(--chip-bg);
 }

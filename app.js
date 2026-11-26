@@ -145,11 +145,17 @@ let fcFormat = "en-ja";
 // 小テスト状態
 let quizQueue = [];
 let quizIndex = 0;
-let quizFormat = "en-ja";
+let quizFormat = "spell";
 let quizLayout = "single"; // "single" | "list"
 let quizAnswers = {}; // { [no]: { correct: boolean, level: number } }
 let quizListRevealed = false;
 let quizIsRetest = false;
+
+// スペル入力テスト状態
+let spellTargetTokens = []; // [{ type: 'char', expected: 'a' } | { type: 'sep', char: '-'|' ' }]
+let spellAcceptedWords = []; // ['afterward', 'afterwards']
+let spellTypedChars = []; // array of typed lowercase chars matching 'char' tokens
+let spellJudged = false;
 
 // 聞き流し状態（デフォルト: 1.0x / 1.4秒 = 1400ms）
 let listenState = {
@@ -800,7 +806,7 @@ function switchTab(tabName) {
 
   if (tabName === "home") renderHomeView();
   else if (tabName === "vocab") renderVocabView();
-  else if (tabName === "study") renderStudySetupDefaults();
+  else if (tabName === "study") openStudyPicker();
   else if (tabName === "battle") renderBattleFriendView();
   else if (tabName === "progress") renderProgressView();
   else if (tabName === "settings") renderSettingsView();
@@ -944,7 +950,7 @@ function renderProgressView() {
 }
 
 /* =========================================================
-   単語帳画面（文字なし横一列カラーチップ・番号右に品詞・赤シート）
+   単語帳画面（文字入り横一列カラーチップ・番号右に品詞・赤シート）
    ========================================================= */
 function renderLevelFilterChips() {
   const wrap = $("#vocabLevelFilter");
@@ -958,9 +964,7 @@ function renderLevelFilterChips() {
         type="button"
         class="level-chip${isActive ? " active" : ""}"
         data-level="${item.level}"
-        aria-label="${item.label}"
-        title="${item.label}"
-      ></button>
+      >${escapeHtml(item.label)}</button>
     `;
   }).join("");
 
@@ -1278,37 +1282,58 @@ function renderListenStep(triggerAudio = true) {
 }
 
 /* =========================================================
-   学習画面（セットアップ・フラッシュカード・確認テスト）
+   学習画面（モード選択・セットアップ・フラッシュカード・確認テスト）
    ========================================================= */
-function renderStudySetupDefaults() {
+function openStudyPicker() {
+  $("#flashcardStage")?.classList.add("hidden");
+  $("#quizStage")?.classList.add("hidden");
+  $("#studySetupPanel")?.classList.add("hidden");
+  $("#studyPickerPanel")?.classList.remove("hidden");
+}
+
+function openStudySetupForMode(mode) {
   const sMin = $("#studyMin");
   const sMax = $("#studyMax");
   if (sMin && !sMin.dataset.touched) sMin.value = prefs.goalMin || 1;
   if (sMax && !sMax.dataset.touched) sMax.value = prefs.goalMax || 100;
-  setStudyModeTab(currentStudyMode);
+
+  $("#flashcardStage")?.classList.add("hidden");
+  $("#quizStage")?.classList.add("hidden");
+  $("#studyPickerPanel")?.classList.add("hidden");
+  $("#studySetupPanel")?.classList.remove("hidden");
+  setStudyModeTab(mode);
+}
+
+function updateQuizLayoutRowVisibility() {
+  const fmt = $("#quizFormatSelect")?.value || "spell";
+  $("#quizLayoutRow")?.classList.toggle("hidden", fmt === "spell");
 }
 
 function setStudyModeTab(mode) {
   currentStudyMode = mode;
-  $$("#studyModeSwitch .seg-btn").forEach((b) => {
-    b.classList.toggle("active", b.dataset.studyMode === mode);
-  });
   $("#fcOptions")?.classList.toggle("hidden", mode !== "flashcard");
   $("#quizOptions")?.classList.toggle("hidden", mode !== "quiz");
   $("#listenOptions")?.classList.toggle("hidden", mode !== "listen");
 
+  const setupTitle = $("#studySetupTitle");
   const startBtn = $("#btnStartStudy");
-  if (startBtn) {
-    if (mode === "quiz") startBtn.textContent = "確認テストをはじめる";
-    else if (mode === "listen") startBtn.textContent = "リスニングをはじめる";
-    else startBtn.textContent = "フラッシュカードをはじめる";
+  if (mode === "quiz") {
+    if (setupTitle) setupTitle.textContent = "確認テストの設定";
+    if (startBtn) startBtn.textContent = "確認テストをはじめる";
+    updateQuizLayoutRowVisibility();
+  } else if (mode === "listen") {
+    if (setupTitle) setupTitle.textContent = "リスニングの設定";
+    if (startBtn) startBtn.textContent = "リスニングをはじめる";
+  } else {
+    if (setupTitle) setupTitle.textContent = "フラッシュカードの設定";
+    if (startBtn) startBtn.textContent = "フラッシュカードをはじめる";
   }
 }
 
 function exitStudyStages() {
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.add("hidden");
-  $("#studyModeSwitch")?.classList.remove("hidden");
+  $("#studyPickerPanel")?.classList.add("hidden");
   $("#studySetupPanel")?.classList.remove("hidden");
 }
 
@@ -1353,7 +1378,7 @@ function startSelectedStudyMode() {
     fcIndex = 0;
     fcFlipped = false;
     fcFormat = $("#fcFormatSelect")?.value || "en-ja";
-    $("#studyModeSwitch")?.classList.add("hidden");
+    $("#studyPickerPanel")?.classList.add("hidden");
     $("#studySetupPanel")?.classList.add("hidden");
     $("#quizStage")?.classList.add("hidden");
     $("#flashcardStage")?.classList.remove("hidden");
@@ -1365,8 +1390,8 @@ function startSelectedStudyMode() {
     const limit = Math.max(1, Number($("#quizLimitInput")?.value || 20));
     quizQueue = candidates.slice(0, limit);
     quizIndex = 0;
-    quizFormat = $("#quizFormatSelect")?.value || "en-ja";
-    quizLayout = $("#quizLayoutSelect")?.value || "single";
+    quizFormat = $("#quizFormatSelect")?.value || "spell";
+    quizLayout = quizFormat === "spell" ? "single" : ($("#quizLayoutSelect")?.value || "single");
     quizAnswers = {};
     quizListRevealed = false;
     quizIsRetest = false;
@@ -1477,23 +1502,188 @@ function getQuizPromptAndAnswer(item, format) {
 }
 
 function openQuizStage() {
-  $("#studyModeSwitch")?.classList.add("hidden");
+  $("#studyPickerPanel")?.classList.add("hidden");
   $("#studySetupPanel")?.classList.add("hidden");
   $("#flashcardStage")?.classList.add("hidden");
   $("#quizStage")?.classList.remove("hidden");
   $("#quizResultBox")?.classList.add("hidden");
   $("#quizRetestBadge")?.classList.toggle("hidden", !quizIsRetest);
 
-  if (quizLayout === "list") {
+  if (quizFormat === "spell") {
+    $("#quizSingleBox")?.classList.add("hidden");
+    $("#quizListBox")?.classList.add("hidden");
+    $("#quizProgressWrap")?.classList.remove("hidden");
+    $("#quizSpellBox")?.classList.remove("hidden");
+    renderSpellQuestion();
+  } else if (quizLayout === "list") {
+    $("#quizSpellBox")?.classList.add("hidden");
     $("#quizSingleBox")?.classList.add("hidden");
     $("#quizProgressWrap")?.classList.add("hidden");
     $("#quizListBox")?.classList.remove("hidden");
     renderQuizListMode();
   } else {
+    $("#quizSpellBox")?.classList.add("hidden");
     $("#quizListBox")?.classList.add("hidden");
     $("#quizProgressWrap")?.classList.remove("hidden");
     $("#quizSingleBox")?.classList.remove("hidden");
     renderQuizSingleQuestion();
+  }
+}
+
+/* ---------- スペル入力テスト（アプリ内専用QWERTYキーボード） ---------- */
+function buildSpellTargetSpec(rawWord) {
+  let cleaned = String(rawWord || "").replace(/～/g, "").trim();
+  const variants = new Set();
+  if (/\([a-zA-Z]+\)/.test(cleaned)) {
+    const withoutOpt = cleaned.replace(/\([a-zA-Z]+\)/g, "").trim();
+    const withOpt = cleaned.replace(/[()]/g, "").trim();
+    variants.add(withoutOpt.replace(/[^a-zA-Z]/g, "").toLowerCase());
+    variants.add(withOpt.replace(/[^a-zA-Z]/g, "").toLowerCase());
+    cleaned = withoutOpt;
+  } else {
+    variants.add(cleaned.replace(/[^a-zA-Z]/g, "").toLowerCase());
+  }
+
+  const tokens = [];
+  for (const ch of cleaned) {
+    if (/[a-zA-Z]/.test(ch)) {
+      tokens.push({ type: "char", expected: ch.toLowerCase() });
+    } else if (ch === "-" || ch === " ") {
+      tokens.push({ type: "sep", char: ch });
+    }
+  }
+  return { tokens, accepted: Array.from(variants).filter(Boolean) };
+}
+
+function renderSpellQuestion() {
+  const item = quizQueue[quizIndex];
+  if (!item) return;
+
+  const spec = buildSpellTargetSpec(item.word);
+  spellTargetTokens = spec.tokens;
+  spellAcceptedWords = spec.accepted;
+  spellTypedChars = [];
+  spellJudged = false;
+
+  if ($("#quizMetaText")) $("#quizMetaText").textContent = `問題 ${quizIndex + 1} / ${quizQueue.length}`;
+  if ($("#quizProgressBar")) $("#quizProgressBar").style.width = `${((quizIndex + 1) / quizQueue.length) * 100}%`;
+  if ($("#qSpellNo")) $("#qSpellNo").textContent = `No. ${item.no}`;
+
+  const posEl = $("#qSpellPos");
+  if (posEl) {
+    posEl.textContent = item.pos || "";
+    posEl.classList.toggle("hidden", !item.pos);
+  }
+  if ($("#qSpellMeaning")) $("#qSpellMeaning").textContent = item.meanings.join(" ／ ");
+
+  $("#qSpellAudio")?.classList.add("hidden");
+  $("#qSpellFeedback")?.classList.add("hidden");
+  $("#qSpellActionRow")?.classList.remove("hidden");
+  $("#qSpellKeyboard")?.classList.remove("hidden");
+
+  renderSpellSlots();
+}
+
+function renderSpellSlots(markResult = null) {
+  const wrap = $("#qSpellSlots");
+  if (!wrap) return;
+  let charIdx = 0;
+  const activeIdx = spellTypedChars.length;
+
+  wrap.innerHTML = spellTargetTokens.map((tk) => {
+    if (tk.type === "sep") {
+      if (tk.char === " ") return `<span class="spell-sep is-space"></span>`;
+      return `<span class="spell-sep">${escapeHtml(tk.char)}</span>`;
+    }
+    const myIdx = charIdx++;
+    const typed = spellTypedChars[myIdx] || "";
+    let cls = "spell-slot";
+    if (markResult === true) cls += " is-correct";
+    else if (markResult === false) cls += " is-wrong";
+    else if (!spellJudged && myIdx === activeIdx) cls += " is-active";
+    return `<span class="${cls}">${escapeHtml(typed)}</span>`;
+  }).join("");
+}
+
+function handleSpellKeyInput(ch) {
+  if (spellJudged) return;
+  const maxLen = spellTargetTokens.filter((t) => t.type === "char").length;
+  if (spellTypedChars.length >= maxLen) return;
+  spellTypedChars.push(ch.toLowerCase());
+  renderSpellSlots();
+}
+
+function handleSpellBackspace() {
+  if (spellJudged || !spellTypedChars.length) return;
+  spellTypedChars.pop();
+  renderSpellSlots();
+}
+
+function handleSpellHint() {
+  if (spellJudged) return;
+  const expectedChars = spellTargetTokens.filter((t) => t.type === "char").map((t) => t.expected);
+  const idx = spellTypedChars.length;
+  if (idx < expectedChars.length) {
+    spellTypedChars.push(expectedChars[idx]);
+    renderSpellSlots();
+  }
+}
+
+function evaluateSpellSubmission(giveUp = false) {
+  if (spellJudged) return;
+  const item = quizQueue[quizIndex];
+  if (!item) return;
+
+  const typedWord = spellTypedChars.join("").toLowerCase();
+  if (!giveUp && typedWord.length === 0) {
+    showToast("アルファベットを入力してください");
+    return;
+  }
+
+  spellJudged = true;
+  const isCorrect = !giveUp && spellAcceptedWords.includes(typedWord);
+  const curLv = Number(state.levels?.[item.no] || 0);
+  const nextLv = isCorrect ? (curLv >= 2 ? 3 : 2) : 1;
+
+  quizAnswers[item.no] = { correct: isCorrect, level: nextLv };
+  setWordLevel(item.no, nextLv);
+
+  renderSpellSlots(isCorrect);
+  $("#qSpellActionRow")?.classList.add("hidden");
+  $("#qSpellKeyboard")?.classList.add("hidden");
+  $("#qSpellAudio")?.classList.remove("hidden");
+  $("#qSpellFeedback")?.classList.remove("hidden");
+
+  const badge = $("#qSpellJudgeBadge");
+  if (badge) {
+    badge.textContent = isCorrect ? "○ 正解！" : "× 不正解";
+    badge.className = `spell-judge-badge ${isCorrect ? "ok" : "ng"}`;
+  }
+  const corrEl = $("#qSpellCorrectWord");
+  if (corrEl) {
+    corrEl.textContent = `正解: ${item.word}`;
+  }
+
+  $$("[data-spell-lv]").forEach((btn) => {
+    btn.classList.toggle("selected", Number(btn.dataset.spellLv) === nextLv);
+  });
+
+  const nextBtn = $("#qSpellNextBtn");
+  if (nextBtn) {
+    nextBtn.textContent = quizIndex + 1 >= quizQueue.length ? "結果を見る" : "次の問題へ";
+  }
+
+  if (prefs.autoAudio) {
+    speakEnglish(item.word);
+  }
+}
+
+function advanceSpellQuestion() {
+  if (quizIndex + 1 < quizQueue.length) {
+    quizIndex++;
+    renderSpellQuestion();
+  } else {
+    showQuizResults();
   }
 }
 
@@ -1613,6 +1803,7 @@ function finalizeQuizListScoring() {
 }
 
 function showQuizResults() {
+  $("#quizSpellBox")?.classList.add("hidden");
   $("#quizSingleBox")?.classList.add("hidden");
   $("#quizListBox")?.classList.add("hidden");
   $("#quizProgressWrap")?.classList.add("hidden");
@@ -2324,9 +2515,15 @@ function bindEvents() {
 
   // ヘッダー＆下部ナビゲーション
   $("#btnBack")?.addEventListener("click", () => {
-    if (activeTab === "study" && (!$("#flashcardStage")?.classList.contains("hidden") || !$("#quizStage")?.classList.contains("hidden"))) {
-      exitStudyStages();
-      return;
+    if (activeTab === "study") {
+      if (!$("#flashcardStage")?.classList.contains("hidden") || !$("#quizStage")?.classList.contains("hidden")) {
+        exitStudyStages();
+        return;
+      }
+      if (!$("#studySetupPanel")?.classList.contains("hidden")) {
+        openStudyPicker();
+        return;
+      }
     }
     switchTab("home");
   });
@@ -2346,8 +2543,7 @@ function bindEvents() {
         if ($("#studyMin")) $("#studyMin").value = prefs.goalMin || 1;
         if ($("#studyMax")) $("#studyMax").value = prefs.goalMax || 100;
         switchTab("study");
-        exitStudyStages();
-        setStudyModeTab(mode);
+        openStudySetupForMode(mode);
       } else if (target === "vocab") {
         vocabMin = prefs.goalMin || 1;
         vocabMax = prefs.goalMax || 100;
@@ -2421,13 +2617,57 @@ function bindEvents() {
     });
   });
 
-  // 学習画面モード切替＆開始
+  // 学習画面モード選択＆開始
   $("#studyMin")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
   $("#studyMax")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
-  $$("#studyModeSwitch .seg-btn").forEach((btn) => {
-    btn.addEventListener("click", () => setStudyModeTab(btn.dataset.studyMode));
+  $$("[data-pick-mode]").forEach((card) => {
+    card.addEventListener("click", () => openStudySetupForMode(card.dataset.pickMode));
   });
+  $("#btnBackToModePicker")?.addEventListener("click", openStudyPicker);
+  $("#quizFormatSelect")?.addEventListener("change", updateQuizLayoutRowVisibility);
   $("#btnStartStudy")?.addEventListener("click", startSelectedStudyMode);
+
+  // スペル入力専用キーボード＆物理キー対応
+  $$("#qSpellKeyboard [data-key]").forEach((keyBtn) => {
+    keyBtn.addEventListener("click", () => handleSpellKeyInput(keyBtn.dataset.key));
+  });
+  $("#qSpellBackBtn")?.addEventListener("click", handleSpellBackspace);
+  $("#qSpellHintBtn")?.addEventListener("click", handleSpellHint);
+  $("#qSpellGiveUpBtn")?.addEventListener("click", () => evaluateSpellSubmission(true));
+  $("#qSpellSubmitBtn")?.addEventListener("click", () => evaluateSpellSubmission(false));
+  $("#qSpellNextBtn")?.addEventListener("click", advanceSpellQuestion);
+  $("#qSpellAudio")?.addEventListener("click", () => {
+    const item = quizQueue[quizIndex];
+    if (item) speakEnglish(item.word);
+  });
+  $$("[data-spell-lv]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = quizQueue[quizIndex];
+      if (!item) return;
+      const lv = Number(btn.dataset.spellLv);
+      quizAnswers[item.no] = { correct: lv >= 2, level: lv };
+      setWordLevel(item.no, lv);
+      $$("[data-spell-lv]").forEach((b) => b.classList.toggle("selected", b === btn));
+    });
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (activeTab !== "study") return;
+    if ($("#quizStage")?.classList.contains("hidden") || $("#quizSpellBox")?.classList.contains("hidden")) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    if (/^[a-zA-Z]$/.test(e.key) && !spellJudged) {
+      e.preventDefault();
+      handleSpellKeyInput(e.key);
+    } else if (e.key === "Backspace" && !spellJudged) {
+      e.preventDefault();
+      handleSpellBackspace();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (!spellJudged) evaluateSpellSubmission(false);
+      else advanceSpellQuestion();
+    }
+  });
 
   // フラッシュカード操作
   $("#btnExitFc")?.addEventListener("click", exitStudyStages);

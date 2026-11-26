@@ -266,19 +266,19 @@
       <div class="action-grid">
         <button class="glass-card action-tile" type="button" data-jump="study" data-mode="flashcard">
           <span class="tile-title">フラッシュカード</span>
-          <span class="tile-desc">目標範囲をテンポよく反復</span>
+          <span class="tile-desc">カードをめくって覚える</span>
         </button>
         <button class="glass-card action-tile" type="button" data-jump="study" data-mode="quiz">
           <span class="tile-title">確認テスト</span>
-          <span class="tile-desc">一問一答・ノート学習で実力確認</span>
+          <span class="tile-desc">スペルや意味をテスト</span>
         </button>
         <button class="glass-card action-tile" type="button" data-jump="vocab" data-filter="weak">
           <span class="tile-title">苦手を復習</span>
-          <span class="tile-desc">苦手・うろ覚えの単語を重点確認</span>
+          <span class="tile-desc">苦手な単語を見直す</span>
         </button>
         <button class="glass-card action-tile" type="button" data-jump="vocab" data-filter="all">
           <span class="tile-title">単語帳を開く</span>
-          <span class="tile-desc">赤シート・リスニング・例文確認</span>
+          <span class="tile-desc">一覧・赤シートで見る</span>
         </button>
       </div>
     </section>
@@ -297,11 +297,11 @@
         </div>
 
         <div id="vocabLevelFilter" class="level-chips" role="group" aria-label="習熟度フィルタ">
-          <button class="level-chip active" type="button" data-level="all" aria-label="すべて" title="すべて"></button>
-          <button class="level-chip" type="button" data-level="0" aria-label="未学習" title="未学習"></button>
-          <button class="level-chip" type="button" data-level="1" aria-label="苦手" title="苦手"></button>
-          <button class="level-chip" type="button" data-level="2" aria-label="うろ覚え" title="うろ覚え"></button>
-          <button class="level-chip" type="button" data-level="3" aria-label="定着" title="定着"></button>
+          <button class="level-chip active" type="button" data-level="all">すべて</button>
+          <button class="level-chip" type="button" data-level="0">未学習</button>
+          <button class="level-chip" type="button" data-level="1">苦手</button>
+          <button class="level-chip" type="button" data-level="2">うろ覚え</button>
+          <button class="level-chip" type="button" data-level="3">定着</button>
         </div>
 
         <div class="vocab-listen-bar">
@@ -340,14 +340,62 @@
 
     <!-- ==================== 3. 学習画面 ==================== -->
     <section id="view-study" class="view">
-      <div class="segmented cols-3 glass" id="studyModeSwitch">
-        <button class="seg-btn active" data-study-mode="flashcard" type="button">フラッシュカード</button>
-        <button class="seg-btn" data-study-mode="quiz" type="button">確認テスト</button>
-        <button class="seg-btn" data-study-mode="listen" type="button">リスニング</button>
+      <!-- ステップ1：モード選択画面 -->
+      <div id="studyPickerPanel" class="study-picker">
+        <p class="study-picker-lead">学習モードを選んでください</p>
+
+        <button class="glass-card mode-pick-card" type="button" data-pick-mode="flashcard">
+          <div class="mode-pick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="2.5"></rect>
+              <line x1="7" y1="10" x2="17" y2="10"></line>
+              <line x1="7" y1="14" x2="13" y2="14"></line>
+            </svg>
+          </div>
+          <div class="mode-pick-body">
+            <span class="mode-pick-title">フラッシュカード</span>
+            <span class="mode-pick-desc">カードをめくって意味や英語を覚える</span>
+          </div>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="glass-card mode-pick-card" type="button" data-pick-mode="quiz">
+          <div class="mode-pick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+          </div>
+          <div class="mode-pick-body">
+            <span class="mode-pick-title">確認テスト</span>
+            <span class="mode-pick-desc">スペル入力や自己採点で定着をチェック</span>
+          </div>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="glass-card mode-pick-card" type="button" data-pick-mode="listen">
+          <div class="mode-pick-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            </svg>
+          </div>
+          <div class="mode-pick-body">
+            <span class="mode-pick-title">リスニング</span>
+            <span class="mode-pick-desc">音声を連続再生して耳から覚える</span>
+          </div>
+          <span class="mode-pick-arrow" aria-hidden="true">›</span>
+        </button>
       </div>
 
-      <!-- 出題設定パネル -->
-      <div id="studySetupPanel" class="glass-card study-setup">
+      <!-- ステップ2：出題設定パネル -->
+      <div id="studySetupPanel" class="glass-card study-setup hidden">
+        <div class="study-setup-head">
+          <h3 id="studySetupTitle" class="card-title">フラッシュカードの設定</h3>
+          <button id="btnBackToModePicker" class="text-btn" type="button">← モード変更</button>
+        </div>
+
         <div class="setup-row">
           <label class="filter-label">出題範囲</label>
           <div class="range-inputs">
@@ -381,7 +429,7 @@
         <!-- フラッシュカード設定 -->
         <div id="fcOptions" class="setup-sub-group">
           <div class="setup-row">
-            <label class="filter-label" for="fcFormatSelect">問題形式</label>
+            <label class="filter-label" for="fcFormatSelect">カードの向き</label>
             <select id="fcFormatSelect" class="select-input">
               <option value="en-ja" selected>英語 → 日本語</option>
               <option value="ja-en">日本語 → 英語</option>
@@ -393,18 +441,19 @@
         <!-- 確認テスト設定 -->
         <div id="quizOptions" class="setup-sub-group hidden">
           <div class="setup-row">
-            <label class="filter-label" for="quizFormatSelect">問題形式</label>
+            <label class="filter-label" for="quizFormatSelect">テスト内容</label>
             <select id="quizFormatSelect" class="select-input">
-              <option value="en-ja" selected>英語 → 日本語</option>
+              <option value="spell" selected>スペル入力</option>
+              <option value="en-ja">英語 → 日本語</option>
               <option value="ja-en">日本語 → 英語</option>
               <option value="example">例文の穴埋め</option>
             </select>
           </div>
-          <div class="setup-row">
-            <label class="filter-label" for="quizLayoutSelect">テスト形式</label>
+          <div id="quizLayoutRow" class="setup-row hidden">
+            <label class="filter-label" for="quizLayoutSelect">進め方</label>
             <select id="quizLayoutSelect" class="select-input">
-              <option value="single" selected>一問一答</option>
-              <option value="list">一覧（ノート学習用）</option>
+              <option value="single" selected>1問ずつ進める</option>
+              <option value="list">一覧でまとめて（ノート用）</option>
             </select>
           </div>
           <div class="setup-row">
@@ -512,6 +561,81 @@
         </div>
         <div id="quizProgressWrap" class="thin-progress-track">
           <div id="quizProgressBar" class="thin-progress-fill" style="width:0%;"></div>
+        </div>
+
+        <!-- スペル入力（アプリ内専用キーボード・予測変換なし） -->
+        <div id="quizSpellBox" class="spell-stage hidden">
+          <div class="glass-card quiz-card">
+            <div class="fc-top-bar">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span id="qSpellNo" class="fc-no">No. 1</span>
+                <span id="qSpellPos" class="pos-badge">動</span>
+              </div>
+              <button id="qSpellAudio" class="audio-pill hidden" type="button">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <span>発音</span>
+              </button>
+            </div>
+
+            <div id="qSpellMeaning" class="spell-meaning">達成する</div>
+            <div id="qSpellSlots" class="spell-slots" aria-live="polite"></div>
+
+            <!-- 判定後の結果表示 -->
+            <div id="qSpellFeedback" class="spell-feedback hidden">
+              <div id="qSpellJudgeBadge" class="spell-judge-badge">○ 正解</div>
+              <div id="qSpellCorrectWord" class="spell-correct-word"></div>
+              <div class="listen-rate-row" style="margin-top:8px;">
+                <button class="rate-btn lv-1-btn" type="button" data-spell-lv="1">苦手</button>
+                <button class="rate-btn lv-2-btn" type="button" data-spell-lv="2">うろ覚え</button>
+                <button class="rate-btn lv-3-btn" type="button" data-spell-lv="3">定着</button>
+              </div>
+              <button id="qSpellNextBtn" class="primary-btn full-btn" type="button" style="margin-top:10px;">次の問題へ</button>
+            </div>
+
+            <!-- 入力中のアクションバー -->
+            <div id="qSpellActionRow" class="spell-action-row">
+              <button id="qSpellGiveUpBtn" class="sub-btn" type="button">わからない</button>
+              <button id="qSpellSubmitBtn" class="primary-btn" type="button">判定する</button>
+            </div>
+          </div>
+
+          <!-- 専用QWERTYキーボード -->
+          <div id="qSpellKeyboard" class="qwerty-board glass">
+            <div class="qwerty-row">
+              <button type="button" class="q-key" data-key="q">q</button>
+              <button type="button" class="q-key" data-key="w">w</button>
+              <button type="button" class="q-key" data-key="e">e</button>
+              <button type="button" class="q-key" data-key="r">r</button>
+              <button type="button" class="q-key" data-key="t">t</button>
+              <button type="button" class="q-key" data-key="y">y</button>
+              <button type="button" class="q-key" data-key="u">u</button>
+              <button type="button" class="q-key" data-key="i">i</button>
+              <button type="button" class="q-key" data-key="o">o</button>
+              <button type="button" class="q-key" data-key="p">p</button>
+            </div>
+            <div class="qwerty-row qwerty-row-mid">
+              <button type="button" class="q-key" data-key="a">a</button>
+              <button type="button" class="q-key" data-key="s">s</button>
+              <button type="button" class="q-key" data-key="d">d</button>
+              <button type="button" class="q-key" data-key="f">f</button>
+              <button type="button" class="q-key" data-key="g">g</button>
+              <button type="button" class="q-key" data-key="h">h</button>
+              <button type="button" class="q-key" data-key="j">j</button>
+              <button type="button" class="q-key" data-key="k">k</button>
+              <button type="button" class="q-key" data-key="l">l</button>
+            </div>
+            <div class="qwerty-row">
+              <button type="button" id="qSpellHintBtn" class="q-key q-key-fn" title="1文字ヒント">ヒント</button>
+              <button type="button" class="q-key" data-key="z">z</button>
+              <button type="button" class="q-key" data-key="x">x</button>
+              <button type="button" class="q-key" data-key="c">c</button>
+              <button type="button" class="q-key" data-key="v">v</button>
+              <button type="button" class="q-key" data-key="b">b</button>
+              <button type="button" class="q-key" data-key="n">n</button>
+              <button type="button" class="q-key" data-key="m">m</button>
+              <button type="button" id="qSpellBackBtn" class="q-key q-key-fn" aria-label="1文字消す">⌫</button>
+            </div>
+          </div>
         </div>
 
         <!-- 一問一答 -->
