@@ -1026,33 +1026,6 @@
       </div>
 
       <div class="glass-card study-setup">
-        <h3 class="card-title">アカウント</h3>
-        <div class="setup-row">
-          <span class="filter-label">ログインID</span>
-          <strong id="authCurrentLoginId">未ログイン</strong>
-        </div>
-        <div class="setup-row">
-          <span class="filter-label">フレンドID</span>
-          <strong id="authFriendId">---</strong>
-        </div>
-        <div class="setup-row">
-          <span class="filter-label">再設定用メール</span>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span id="authRecoveryStatus" class="sub-label">未登録</span>
-            <button id="btnOpenRecoveryModal" class="sub-btn" type="button" style="padding:5px 10px;font-size:0.78rem;">登録・変更</button>
-          </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <label class="filter-label" for="setDisplayNameInput">ニックネーム（1〜16文字）</label>
-          <div class="inline-edit-row">
-            <input type="text" id="setDisplayNameInput" class="text-input" maxlength="16" placeholder="ニックネーム" />
-            <button id="btnUpdateDisplayName" class="primary-btn" type="button">保存</button>
-          </div>
-        </div>
-        <button id="btnLogout" class="sub-btn full-btn" type="button" style="color:var(--lv-1);">ログアウト</button>
-      </div>
-
-      <div class="glass-card study-setup">
         <h3 class="card-title">学習・表示設定</h3>
         <div class="setup-row">
           <label class="filter-label" for="setVoiceAccent">発音アクセント</label>
@@ -1092,6 +1065,33 @@
             <option value="dark-slate">ダークスレート</option>
           </select>
         </div>
+      </div>
+
+      <div class="glass-card study-setup">
+        <h3 class="card-title">アカウント</h3>
+        <div class="setup-row">
+          <span class="filter-label">ログインID</span>
+          <strong id="authCurrentLoginId">未ログイン</strong>
+        </div>
+        <div class="setup-row">
+          <span class="filter-label">フレンドID</span>
+          <strong id="authFriendId">---</strong>
+        </div>
+        <div class="setup-row">
+          <span class="filter-label">再設定用メール</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="authRecoveryStatus" class="sub-label">未登録</span>
+            <button id="btnOpenRecoveryModal" class="sub-btn" type="button" style="padding:5px 10px;font-size:0.78rem;">登録・変更</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label class="filter-label" for="setDisplayNameInput">ニックネーム（1〜16文字）</label>
+          <div class="inline-edit-row">
+            <input type="text" id="setDisplayNameInput" class="text-input" maxlength="16" placeholder="ニックネーム" />
+            <button id="btnUpdateDisplayName" class="primary-btn" type="button">保存</button>
+          </div>
+        </div>
+        <button id="btnLogout" class="sub-btn full-btn" type="button" style="color:var(--lv-1);">ログアウト</button>
       </div>
 
       <div class="glass-card study-setup">
