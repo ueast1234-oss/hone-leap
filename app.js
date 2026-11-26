@@ -412,7 +412,6 @@ function parseCsvRows(text) {
 function splitMeanings(raw) {
   const text = String(raw || "").trim();
   if (!text) return ["—"];
-  // ①②③ などの丸数字区切りがある場合は丸数字の手前で分割
   if (/[①②③④⑤⑥⑦⑧⑨⑩]/.test(text)) {
     const parts = text
       .split(/\s*(?=[①②③④⑤⑥⑦⑧⑨⑩])/)
@@ -532,7 +531,7 @@ function formatExampleClozeHtml(rawEn, targetWord) {
 }
 
 /* =========================================================
-   Firebase 初期化・認証・クラウド同期
+   Firebase 初期化・認証・クラウド同期（ratings 統合対応）
    ========================================================= */
 async function initFirebaseIfAvailable() {
   try {
@@ -587,6 +586,61 @@ async function resolveLoginEmail(rawInput) {
     if (!candidates.includes(addr)) candidates.push(addr);
   });
   return candidates;
+}
+
+function mergeRemoteLevels(remote) {
+  const merged = { ...(state.levels || {}) };
+  if (remote?.ratings && typeof remote.ratings === "object") {
+    for (const [k, v] of Object.entries(remote.ratings)) {
+      const num = Number(v);
+      if (!Number.isNaN(num) && merged[k] === undefined) {
+        merged[k] = Math.max(0, Math.min(3, num));
+      }
+    }
+  }
+  if (remote?.levels && typeof remote.levels === "object") {
+    for (const [k, v] of Object.entries(remote.levels)) {
+      const num = Number(v);
+      if (!Number.isNaN(num)) {
+        merged[k] = Math.max(0, Math.min(3, num));
+      }
+    }
+  }
+  return merged;
+}
+
+function applyRemoteUserDoc(remote, user = null) {
+  if (!remote) return;
+  const mergedLevels = mergeRemoteLevels(remote);
+  const remoteStudyLog = { ...(state.studyLog || {}), ...(remote.studyLog || {}) };
+  const mergedCount = Object.keys(mergedLevels).length;
+  const today = todayKey();
+
+  if (mergedCount > 0 && (!remoteStudyLog[today] || Number(remoteStudyLog[today]) === 0)) {
+    remoteStudyLog[today] = Math.max(Number(state.studyLog?.[today] || 0), mergedCount);
+  }
+
+  state = {
+    ...DEFAULT_STATE,
+    ...state,
+    loginId: remote.loginId || state.loginId || extractLoginIdFromEmail(user?.email || ""),
+    recoveryEmail: remote.recoveryEmail || state.recoveryEmail,
+    nickname: remote.nickname ?? state.nickname ?? user?.displayName ?? "",
+    friendId: ensureFriendId(remote.friendId || remote.friendCode || state.friendId),
+    levels: mergedLevels,
+    streaks: { ...(state.streaks || {}), ...(remote.streaks || {}) },
+    studyLog: remoteStudyLog,
+    studiedIdsToday: (Array.isArray(remote.studiedIdsToday) && remote.studiedIdsToday.length > 0)
+      ? remote.studiedIdsToday
+      : (mergedCount > 0 ? Object.keys(mergedLevels) : (state.studiedIdsToday || [])),
+    studiedDate: remote.studiedDate || today,
+    streakDays: Math.max(Number(remote.streakDays || 0), Number(state.streakDays || 0), mergedCount > 0 ? 1 : 0),
+    lastStudyDate: remote.lastStudyDate || state.lastStudyDate || (mergedCount > 0 ? today : ""),
+    friends: remote.friends || state.friends || [],
+    updatedAt: Math.max(Number(remote.updatedAt || 0), Number(state.updatedAt || 0), Date.now())
+  };
+  normalizeDailyState();
+  saveLocalState(false);
 }
 
 function updateSyncUi() {
@@ -652,6 +706,7 @@ async function pushCloudStateNow() {
       friendId: state.friendId,
       friendCode: state.friendId,
       levels: state.levels || {},
+      ratings: state.levels || {},
       streaks: state.streaks || {},
       studyLog: state.studyLog || {},
       studiedIdsToday: state.studiedIdsToday || [],
@@ -698,28 +753,13 @@ function subscribeUserDoc(uid) {
   cloudUnsubscribe = onSnapshot(doc(db, "users", uid), (snap) => {
     if (!snap.exists()) return;
     const remote = snap.data();
+    const hasRemoteRatings = remote?.ratings && Object.keys(remote.ratings).length > 0;
+    const hasRemoteLevels = remote?.levels && Object.keys(remote.levels).length > 0;
     const remoteTs = Number(remote.updatedAt || 0);
     const localTs = Number(state.updatedAt || 0);
-    if (remoteTs > localTs) {
-      state = {
-        ...DEFAULT_STATE,
-        ...state,
-        loginId: remote.loginId || state.loginId,
-        recoveryEmail: remote.recoveryEmail || state.recoveryEmail,
-        nickname: remote.nickname ?? state.nickname,
-        friendId: ensureFriendId(remote.friendId || remote.friendCode || state.friendId),
-        levels: { ...(state.levels || {}), ...(remote.levels || {}) },
-        streaks: { ...(state.streaks || {}), ...(remote.streaks || {}) },
-        studyLog: { ...(state.studyLog || {}), ...(remote.studyLog || {}) },
-        studiedIdsToday: remote.studiedIdsToday || state.studiedIdsToday,
-        studiedDate: remote.studiedDate || state.studiedDate,
-        streakDays: remote.streakDays ?? state.streakDays,
-        lastStudyDate: remote.lastStudyDate || state.lastStudyDate,
-        friends: remote.friends || state.friends,
-        updatedAt: remoteTs
-      };
-      normalizeDailyState();
-      saveLocalState(false);
+
+    if (remoteTs >= localTs || hasRemoteRatings || hasRemoteLevels) {
+      applyRemoteUserDoc(remote, currentUser);
       renderAll();
     }
   });
@@ -756,24 +796,10 @@ function setupAuthListeners() {
         const snap = await getDoc(doc(db, "users", user.uid));
         if (snap.exists()) {
           const remote = snap.data();
-          if (Number(remote.updatedAt || 0) >= Number(state.updatedAt || 0)) {
-            state = {
-              ...DEFAULT_STATE,
-              ...state,
-              loginId: remote.loginId || state.loginId,
-              recoveryEmail: remote.recoveryEmail || state.recoveryEmail,
-              nickname: remote.nickname || state.nickname || user.displayName || "",
-              friendId: ensureFriendId(remote.friendId || remote.friendCode || state.friendId),
-              levels: { ...(state.levels || {}), ...(remote.levels || {}) },
-              studiedIdsToday: remote.studiedIdsToday || state.studiedIdsToday,
-              studiedDate: remote.studiedDate || todayKey(),
-              streakDays: remote.streakDays ?? state.streakDays,
-              lastStudyDate: remote.lastStudyDate || state.lastStudyDate,
-              friends: remote.friends || state.friends || [],
-              updatedAt: Number(remote.updatedAt || Date.now())
-            };
-            normalizeDailyState();
-            saveLocalState(false);
+          const hasRemoteRatings = remote?.ratings && Object.keys(remote.ratings).length > 0;
+          const hasRemoteLevels = remote?.levels && Object.keys(remote.levels).length > 0;
+          if (Number(remote.updatedAt || 0) >= Number(state.updatedAt || 0) || hasRemoteRatings || hasRemoteLevels) {
+            applyRemoteUserDoc(remote, user);
           } else {
             scheduleCloudSync();
           }
@@ -1293,7 +1319,6 @@ function speakEnglish(text, rate = 1.0, onDone = null) {
     };
     utt.onend = finishOnce;
     utt.onerror = finishOnce;
-    // Web Speech API が onend を発火しないブラウザ環境向けの安全フォールバック
     setTimeout(finishOnce, Math.max(1400, Math.round((text.length * 110) / Math.max(0.6, rate)) + 700));
     window.speechSynthesis.speak(utt);
   } catch (_) {
@@ -1476,7 +1501,6 @@ function setStudyModeTab(mode) {
   $("#quizOptions")?.classList.toggle("hidden", mode !== "quiz");
   $("#paperOptions")?.classList.toggle("hidden", mode !== "paper");
   $("#listenOptions")?.classList.toggle("hidden", mode !== "listen");
-  // 確認テストと筆記テストはランダム出題固定のため「出題順」行を非表示
   $("#studyOrderRow")?.classList.toggle("hidden", mode === "quiz" || mode === "paper");
 
   const setupTitle = $("#studySetupTitle");
@@ -1805,7 +1829,6 @@ function buildTypingSpecForExample(item) {
   const alphaTarget = targetToken.replace(/[^a-zA-Z]/g, "").toLowerCase();
   const firstChar = alphaTarget[0] || (item.word[0] || "").toLowerCase();
 
-  // [[...]] 内が複数語の場合は対象語のみ空欄にし、前後の補助語はそのまま残す
   const replacedInside = wordsInBracket
     .map((w) => (w === targetToken ? `__BLANK__` : escapeHtml(w)))
     .join(" ");
@@ -2690,7 +2713,7 @@ async function openFriendDetailModal(friend) {
 
   const name = remoteData?.nickname || friend.nickname || "フレンド";
   const fid = remoteData?.friendId || friend.friendId || "HN-XXXXXX";
-  const fLevels = remoteData?.levels || {};
+  const fLevels = { ...(remoteData?.ratings || {}), ...(remoteData?.levels || {}) };
   const todayCnt = remoteData?.studiedDate === todayKey() ? (remoteData?.studiedIdsToday?.length || 0) : 0;
   const streak = remoteData?.streakDays || 0;
 
@@ -3083,7 +3106,6 @@ function bindEvents() {
     if ($("#quizStage")?.classList.contains("hidden")) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-    // タイピングテスト中
     if (!$("#quizSpellBox")?.classList.contains("hidden")) {
       if (/^[a-zA-Z]$/.test(e.key) && !spellJudged) {
         e.preventDefault();
