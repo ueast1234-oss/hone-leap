@@ -38,8 +38,8 @@ const STORAGE_KEYS = {
   PREFS: "hone_prefs_v2",
   LEGACY_PREFS: "hone_prefs_v1",
   CACHE_WORDS: "hone_words_cache_v2",
-  CACHE_EXAMPLES: "hone_examples_cache_v2",
-  CACHE_DERIVATIVES: "hone_derivatives_cache_v1",
+  CACHE_EXAMPLES: "hone_examples_cache_v3",
+  CACHE_DERIVATIVES: "hone_derivatives_cache_v2",
   GUEST_MODE: "hone_guest_mode_v1",
   DISMISS_RECOVERY: "hone_dismiss_recovery_v1"
 };
@@ -477,7 +477,8 @@ function buildDerivativesMap(rows) {
     const word = (r["派生語"] || r.derivative || r.word || r.en || "").trim();
     const pos = (r["品詞"] || r.pos || r.part_of_speech || "").trim();
     const meaning = (r["意味"] || r["主な意味"] || r.meaning || r.ja || r.jp || "").trim();
-    if (!no || !word || !meaning) return;
+    // 意味が空欄の派生語も補完せずそのまま単語帳表示用に保持する
+    if (!no || !word) return;
     if (!derivativesMap.has(no)) derivativesMap.set(no, []);
     derivativesMap.get(no).push({ no, word, pos, meaning });
   });
@@ -1430,13 +1431,13 @@ function renderVocabList(list = getFilteredVocab()) {
     const derivativesHtml = derivList.length
       ? `
         <div class="acc-block">
-          <span class="acc-label">派生語</span>
+          <span class="acc-label">派生語・関連語</span>
           <div class="deriv-list">
             ${derivList.map((d) => `
               <div class="deriv-row">
                 ${d.pos ? `<span class="pos-badge">${escapeHtml(d.pos)}</span>` : ""}
                 <span class="deriv-word">${escapeHtml(d.word)}</span>
-                <span class="deriv-meaning">${escapeHtml(d.meaning)}</span>
+                ${d.meaning ? `<span class="deriv-meaning">${escapeHtml(d.meaning)}</span>` : ""}
               </div>
             `).join("")}
           </div>
@@ -1839,7 +1840,9 @@ function buildStudyCandidates() {
       const expanded = [];
       list.forEach((w) => {
         (derivativesMap.get(w.no) || []).forEach((d, idx) => {
-          expanded.push({ ...w, _deriv: d, _qKey: `${w.no}_d${idx}` });
+          if (isTypableDerivative(d)) {
+            expanded.push({ ...w, _deriv: d, _qKey: `${w.no}_d${idx}` });
+          }
         });
       });
       list = expanded;
@@ -1853,7 +1856,9 @@ function buildStudyCandidates() {
       const expanded = [];
       list.forEach((w) => {
         (derivativesMap.get(w.no) || []).forEach((d, idx) => {
-          expanded.push({ ...w, _deriv: d, _qKey: `${w.no}_d${idx}` });
+          if (d.meaning) {
+            expanded.push({ ...w, _deriv: d, _qKey: `${w.no}_d${idx}` });
+          }
         });
       });
       list = expanded;
@@ -1876,9 +1881,9 @@ function startSelectedStudyMode() {
       (currentStudyMode === "quiz" && $("#quizFormatSelect")?.value === "derivative-type") ||
       (currentStudyMode === "paper" && $("#paperFormatSelect")?.value === "derivative");
     if (isExampleMode) {
-      showToast("この範囲に例文データがありません（No.301〜600 に収録）");
+      showToast("この範囲に例文データがありません（No.296〜1000 に収録）");
     } else if (isDerivativeMode) {
-      showToast("この範囲に派生語データがありません");
+      showToast("この範囲に日本語訳付きの派生語データがありません（No.296〜999 に収録）");
     } else {
       showToast("条件に一致する単語がありません");
     }
@@ -2158,7 +2163,13 @@ function getQuizItemKey(item) {
 
 /* ---------- タイピング入力テスト（文字数非表示・先頭1文字表示切替対応） ---------- */
 function buildTypingSpecForWord(rawWord, showFirstChar = true) {
-  let cleaned = String(rawWord || "").replace(/～/g, "").trim();
+  let cleaned = String(rawWord || "").trim();
+  // (to ~), (A from doing), (with (人)) 等の構文注記括弧を除去（2回ループで入れ子括弧にも対応）
+  for (let i = 0; i < 2; i++) {
+    cleaned = cleaned.replace(/\([^()]*[\s~〜～\u3000-\u9FFF\uFF00-\uFFEF][^()]*\)/g, " ").trim();
+  }
+  cleaned = cleaned.replace(/[～〜~]/g, " ").replace(/\s+/g, " ").trim();
+
   const accepted = new Set();
 
   if (/\([a-zA-Z]+\)/.test(cleaned)) {
@@ -2179,6 +2190,28 @@ function buildTypingSpecForWord(rawWord, showFirstChar = true) {
     accepted: Array.from(accepted).filter(Boolean),
     displayAnswer: rawWord
   };
+}
+
+function isTypableDerivative(d) {
+  if (!d || !d.meaning) return false;
+  if (/[.!?,0-9]/.test(d.word)) return false;
+  const spec = buildTypingSpecForWord(d.word, true);
+  if (!spec.accepted.length) return false;
+  const len = spec.accepted[0].length;
+  return len >= 2 && len <= 24;
+}
+
+function formatDerivOriginLabel(d, parentWordObj) {
+  const head = parentWordObj?.word || "";
+  const m0 = parentWordObj?.meanings?.[0] || "";
+  const prefix = d?.pos === "反"
+    ? "対義語元"
+    : d?.pos === "類"
+      ? "類義語元"
+      : d?.pos === "参"
+        ? "関連元"
+        : "派生元";
+  return m0 ? `${prefix}: ${head}（${m0}）` : `${prefix}: ${head}`;
 }
 
 function buildTypingSpecForExample(item, showFirstChar = true) {
@@ -2245,7 +2278,7 @@ function buildTypingSpecForExample(item, showFirstChar = true) {
 }
 
 function buildTypingSpecForDerivative(item, showFirstChar = true) {
-  const d = item._deriv || (derivativesMap.get(item.no) || [])[0];
+  const d = item._deriv || (derivativesMap.get(item.no) || []).find(isTypableDerivative);
   if (!d) {
     const fallback = buildTypingSpecForWord(item.word, showFirstChar);
     return {
@@ -2257,13 +2290,14 @@ function buildTypingSpecForDerivative(item, showFirstChar = true) {
     };
   }
   const wSpec = buildTypingSpecForWord(d.word, showFirstChar);
+  const cleanSpeak = String(d.word || "").replace(/\([^()]*[\s~〜～\u3000-\u9FFF\uFF00-\uFFEF][^()]*\)/g, "").replace(/[～〜~()]/g, "").trim();
   return {
     ...wSpec,
     pos: d.pos || "",
     promptText: d.meaning,
-    subNote: `派生元: ${item.word}（${item.meanings[0] || ""}）`,
-    displayAnswer: `${d.word}（派生元: ${item.word}）`,
-    audioWord: d.word
+    subNote: formatDerivOriginLabel(d, item),
+    displayAnswer: `${d.word}（見出し語: ${item.word}）`,
+    audioWord: cleanSpeak || item.word
   };
 }
 
@@ -2768,7 +2802,9 @@ function buildBattleQuestions(minNo, maxNo, count, format = "ja-en", showFirstCh
     wordsData.forEach((w) => {
       if (w.no < s || w.no > e) return;
       (derivativesMap.get(w.no) || []).forEach((d) => {
-        derivPool.push({ w, d });
+        if (isTypableDerivative(d)) {
+          derivPool.push({ w, d });
+        }
       });
     });
     if (!derivPool.length) return [];
@@ -2780,8 +2816,8 @@ function buildBattleQuestions(minNo, maxNo, count, format = "ja-en", showFirstCh
         no: w.no,
         pos: d.pos || "",
         prompt: d.meaning,
-        subNote: `派生元: ${w.word}（${w.meanings[0] || ""}）`,
-        answerWord: `${d.word}（派生元: ${w.word}）`,
+        subNote: formatDerivOriginLabel(d, w),
+        answerWord: `${d.word}（見出し語: ${w.word}）`,
         showFirstChar: Boolean(showFirstChar),
         firstChar: spec.firstChar,
         initialChar: spec.initialChar,
@@ -2829,9 +2865,9 @@ async function createBattleRoomAction() {
   const questions = buildBattleQuestions(minNo, maxNo, count, format, showFirstChar);
   if (!questions.length) {
     if (format === "example") {
-      showToast("この範囲に例文データがありません（No.301〜600 に収録）");
+      showToast("この範囲に例文データがありません（No.296〜1000 に収録）");
     } else if (format === "derivative") {
-      showToast("この範囲に派生語データがありません");
+      showToast("この範囲に日本語訳付きの派生語データがありません（No.296〜999 に収録）");
     } else {
       showToast("選択した範囲に問題データがありません");
     }
@@ -4010,9 +4046,33 @@ function bindEvents() {
   });
 
   // 学習画面モード選択・マルチ選択チップ・開始
+  const adjustStudyRangeIfUntouched = (needs296Range) => {
+    const minEl = $("#studyMin");
+    const maxEl = $("#studyMax");
+    if (minEl && maxEl && !minEl.dataset.touched && !maxEl.dataset.touched) {
+      if (needs296Range && Number(maxEl.value) < 296) {
+        minEl.value = "296";
+        maxEl.value = "400";
+      } else if (!needs296Range) {
+        minEl.value = String(prefs.goalMin || 1);
+        maxEl.value = String(prefs.goalMax || 100);
+      }
+    }
+  };
   $("#studyMin")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
   $("#studyMax")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
-  $("#quizFormatSelect")?.addEventListener("change", updateQuizFirstCharVisibility);
+  $("#fcFormatSelect")?.addEventListener("change", () => {
+    adjustStudyRangeIfUntouched($("#fcFormatSelect")?.value === "example");
+  });
+  $("#quizFormatSelect")?.addEventListener("change", () => {
+    updateQuizFirstCharVisibility();
+    const v = $("#quizFormatSelect")?.value || "";
+    adjustStudyRangeIfUntouched(v === "example-type" || v === "derivative-type");
+  });
+  $("#paperFormatSelect")?.addEventListener("change", () => {
+    const v = $("#paperFormatSelect")?.value || "";
+    adjustStudyRangeIfUntouched(v === "example" || v === "derivative");
+  });
   $$("[data-pick-mode]").forEach((card) => {
     card.addEventListener("click", () => openStudySetupForMode(card.dataset.pickMode));
   });
@@ -4220,10 +4280,10 @@ function bindEvents() {
     const minEl = $("#battleMin");
     const maxEl = $("#battleMax");
     if (minEl && maxEl && !minEl.dataset.touched && !maxEl.dataset.touched) {
-      if (fmt === "example") {
-        minEl.value = "301";
+      if ((fmt === "example" || fmt === "derivative") && Number(maxEl.value) < 296) {
+        minEl.value = "296";
         maxEl.value = "400";
-      } else {
+      } else if (fmt === "ja-en") {
         minEl.value = String(prefs.goalMin || 1);
         maxEl.value = String(prefs.goalMax || 100);
       }

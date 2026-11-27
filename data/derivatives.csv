@@ -1,95 +1,2814 @@
 単語番号,派生語,品詞,意味
-1,agreement,名,同意，合意，契約
-1,disagree,自,意見が合わない，反対する
-1,agreeable,形,心地よい，賛成できる
-2,opposition,名,反対，対立
-2,opposite,形,反対側の，正反対の
-3,advice,名,忠告，助言
-3,adviser,名,助言者，顧問
-5,discussion,名,議論，話し合い
-7,argument,名,主張，口論
-9,complaint,名,不平，苦情
-11,suggestion,名,提案，示唆
-12,recommendation,名,推薦，勧告
-13,gratitude,名,感謝の気持ち
-14,apology,名,謝罪，わび
-16,celebration,名,祝賀，お祝い
-17,congratulation,名,お祝い，祝辞
-18,admiration,名,称賛，感嘆
-19,impression,名,印象，感銘
-19,impressive,形,印象的な，感銘を与える
-21,explanation,名,説明
-22,description,名,説明，描写
-23,communication,名,伝達，意思疎通
-23,communicative,形,伝達的な，話好きな
-24,expression,名,表現，表情
-26,inform,他,～に知らせる
-26,informative,形,有益な情報を与える
-27,technological,形,科学技術の
-28,researcher,名,研究者
-30,artificially,副,人工的に，不自然に
-31,electricity,名,電気，電力
-31,electrical,形,電気に関する
-32,invention,名,発明，発明品
-32,inventor,名,発明家
-33,discovery,名,発見
-34,development,名,発達，開発
-35,skillful,形,熟練した，巧みな
-36,able,形,～できる，有能な
-36,unable,形,～できない
-36,disability,名,障害，無力
-37,talented,形,才能のある
-39,practical,形,実用的な，実践的な
-40,achievement,名,達成，業績
-41,management,名,経営，管理
-41,manager,名,支配人，管理者
-42,improvement,名,改善，向上
-43,production,名,生産，制作
-43,product,名,製品，生産物
-43,productive,形,生産的な
-44,creation,名,創造，創作物
-44,creative,形,創造的な
-44,creature,名,生き物，動物
-45,establishment,名,設立，確立，施設
-49,patience,名,忍耐，辛抱強さ
-49,impatient,形,我慢できない，いらいらした
-53,suffering,名,苦しみ，苦痛
-55,breath,名,息，呼吸
-56,thirst,名,のどの渇き，渇望
-57,physically,副,身体的に，物理的に
-59,strong,形,強い
-59,strengthen,他,～を強化する
-61,tasty,形,おいしい
-64,habitual,形,習慣的な
-66,traditional,形,伝統的な
-67,social,形,社会の，社交的な
-68,legal,形,法律上の，合法の
-68,lawyer,名,弁護士
-70,populate,他,～に居住する
-75,valuable,形,貴重な，価値のある
-79,evident,形,明らかな
-80,voter,名,投票者，有権者
-81,govern,他,～を統治する
-82,national,形,国の，国民の
-85,politics,名,政治，政治学
-85,politician,名,政治家
-93,wealthy,形,裕福な，豊富な
-94,economic,形,経済の
-94,economical,形,経済的な，節約になる
-100,injury,名,けが，負傷
-102,destruction,名,破壊
-102,destructive,形,破壊的な
-104,dangerous,形,危険な
-104,endanger,他,～を危険にさらす
-301,modernize,他,～を近代化する
-308,provision,名,供給，規定
-314,presence,名,存在，出席
-314,presentation,名,発表，提示
-323,sale,名,販売，特売
+1,agreeable,,
+1,agreement,,
+1,disagree,,
+2,opponent,,
+2,opposite,,
+2,opposition,,
+3,advisable,,
+4,tiptoe,,
+5,discussion,,
+7,argument,,
+8,baggage claim,,
+9,complaint,,
+11,suggestion,,
+12,recommendation,,
+12,today's special,,
+14,apology,,
+16,celebrated,,
+16,celebration,,
+16,celebrity,,
+16,ceremony,,
+16,commemorate,,
+17,congratulation,,
+18,admirable,,
+18,admiration,,
+19,impression,,
+20,award-winning,,
+21,explanation,,
+22,description,,
+23,communication,,
+23,communications,,
+24,a local train,,
+24,expression,,
+24,expressive,,
+25,promising,,
+26,inform (人) about ~,,
+26,inform (人) of ~,,
+26,inform (人) that S V,,
+26,informed,,
+27,technique,,
+27,technological,,
+28,researcher,,
+29,idealism,,
+29,materialism,,
+30,natural,,
+31,electricity,,
+32,invention,,
+32,inventor,,
+32,inventory,,
+33,disclose,,
+33,discovery,,
+33,finding,,
+34,developed,,
+34,developer,,
+34,developing,,
+35,skilled,,
+35,skillful (with ~ ),,
+35,skillfully,,
+36,able,,
+37,gift,,
+37,talented,,
+39,theory,,
+40,achievement,,
+40,underachievement,,
+41,management,,
+41,manager,,
+41,run,,
+42,improvement,,
+43,by-product,,
+43,product,,
+43,production,,
+43,productive,,
+43,productivity,,
+44,creation,,
+44,creative,,
+44,creativity,,
+44,creature,,
+45,established,,
+45,establishment,,
+46,formal,,
+46,format,,
+46,formation,,
+46,informal,,
+48,medication,,
+48,pill,,
+48,tablet,,
+48,telemedicine,,
+48,vaccine,,
+49,impatient,,
+49,patience,,
+49,patiently,,
+50,conditional,,
+50,unconditional,,
+52,stressed,,
+52,stressful,,
+53,suffering,,
+55,breath,,
+55,breathtaking,,
+56,thirst,,
+57,mental,,
+57,metaphysical,,
+57,physicist,,
+57,physics,,
+58,feverish,,
+59,strengthen,,
+59,weaken,,
+61,delicious,,
+61,tasty,,
+62,ruler,,
+62,ruling,,
+64,habitual,,
+65,customary,,
+66,traditional,,
+66,traditionally,,
+67,sociable,,
+67,social,,
+67,socialize with ~,,
+68,attorney,,
+68,lawful,,
+68,lawyer,,
+69,ancestry,,
+69,ancient,,
+69,descendant,,
+69,grandparents,,
+70,populate,,
+75,invaluable,,
+75,valuable,,
+75,valuables,,
+75,valueless,,
+77,fashionable,,
+77,old-fashioned,,
+78,publicity,,
+79,evident,,
+80,cast a ballot,,
+80,voting,,
+81,govern,,
+81,governor,,
+82,national,,
+82,nationalism,,
+82,nationwide,,
+83,capitalism,,
+83,per capita,,
+84,statesman,,
+85,ideology,,
+85,politician,,
+85,politics,,
+86,discount,,
+86,priceless,,
+87,summarize,,
+87,summary,,
+91,flyer,,
+91,invoice,,
+93,wealthy,,
+94,economics,,
+94,economist,,
+95,costly,,
+96,an office worker,,
+96,companion,,
+98,breadwinner,,
+98,earner,,
+98,earnings,,
+99,heart,,
+100,bruise,,
+100,injury,,
+100,scar,,
+102,destruction,,
+104,dangerous,,
+104,dangerously,,
+105,neighborhood,,
+105,neighboring,,
+106,auditorium,,
+106,auditory,,
+107,congested,,
+107,crowded (with ~),,
+110,clerical,,
+112,a bus driver,,
+112,a taxi driver,,
+112,a train driver,,
+114,feminine,,
+114,feminist,,
+114,male,,
+114,masculine,,
+115,head-on,,
+115,headline,,
+116,following,,
+118,tourism,,
+119,passing,,
+120,likelihood,,
+120,unlikely,,
+121,naturally,,
+121,unnatural,,
+122,certainly,,
+123,probability,,
+123,probable,,
+124,facial,,
+125,unavoidable,,
+126,solution,,
+127,troublesome,,
+129,cheerful,,
+130,discourage (人) from doing,,
+130,encouragement,,
+131,supporter,,
+132,preventable,,
+132,prevention,,
+133,denial,,
+135,success,,
+135,successful,,
+135,succession,,
+135,successive,,
+136,missing,,
+137,failure,,
+138,mistaken,,
+138,mistakenly,,
+139,checkout counter,,
+139,checkup,,
+139,paycheck,,
+140,hidden,,
+140,play hide-and-seek,,
+141,drawer,,
+142,joint,,
+143,overthrow,,
+144,operation,,
+146,dustcloth,,
+146,knit,,
+146,knitting,,
+146,sewing,,
+147,fund-raiser,,
+148,servant,,
+150,spillover,,
+151,pretense,,
+152,behavior,,
+153,food-borne disease,,
+154,exploration,,
+154,explorer,,
+155,happening,,
+156,appearance,,
+156,disappear,,
+157,remaining,,
+157,remains,,
+158,survival,,
+159,(one's) belongings,,
+160,representation,,
+160,representative,,
+161,basic,,
+161,basis,,
+162,including,,
+163,container,,
+166,collection,,
+166,collective,,
+167,gathering,,
+168,historic,,
+168,historical,,
+169,subjective,,
+169,theme,,
+170,coeducation[co-ed],,
+170,educate,,
+170,educated,,
+170,educational,,
+171,knowledgeable (about ~),,
+172,form,,
+172,uniformity,,
+173,degrade,,
+174,freshman,,
+174,junior,,
+174,seniority,,
+174,sophomore,,
+175,a graduate school,,
+175,a graduate student,,
+175,graduation,,
+175,undergraduate,,
+176,decision,,
+176,decisive,,
+177,judgment,,
+179,incumbent,,
+179,retired,,
+179,retirement,,
+181,choice,,
+182,image,,
+182,imagination,,
+183,guesswork,,
+184,expectancy,,
+184,expectation,,
+185,predictable,,
+185,prediction,,
+186,remembrance,,
+187,reminder,,
+188,real,,
+188,reality,,
+188,realization,,
+189,appreciation,,
+190,acceptable,,
+190,acceptance,,
+191,considerable,,
+191,considerate,,
+191,consideration,,
+191,considering (that) S V,,
+192,-minded,,
+194,seemingly,,
+195,comparable,,
+195,comparative,,
+195,comparison,,
+196,concentration,,
+197,focal,,
+197,focused (on ~),,
+198,allowance,,
+199,admission,,
+200,groundbreaking,,
+200,playground,,
+200,underground,,
+201,pollutant,,
+201,pollute,,
+202,nearsighted,,
+202,oversight,,
+202,sightseeing,,
+204,landlord,,
+204,landscaping,,
+206,seedless,,
+206,seedling,,
+206,seedy,,
+207,implant,,
+207,plantation,,
+208,blossom,,
+209,crop,,
+209,reap,,
+211,earthquake-proof,,
+212,temperament,,
+214,a linear precipitation belt,,
+214,a linear precipitation zone,,
+215,defrost,,
+215,freezer,,
+215,frozen,,
+216,reflection,,
+217,courteous,,
+217,impolite,,
+217,politely,,
+217,rude,,
+218,polite,,
+219,loneliness,,
+219,solitary,,
+220,hardworking,,
+220,laziness,,
+221,stern,,
+221,strictly,,
+222,beautiful,,
+222,ugliness,,
+223,intelligence,,
+224,naive,,
+225,nerve,,
+226,asleep,,
+226,awaken,,
+229,characterize,,
+230,characteristically,,
+232,detailed,,
+233,disadvantage,,
+233,downside,,
+233,drawback,,
+234,default,,
+235,quantity,,
+236,correction,,
+236,correctly,,
+237,idealistic,,
+237,ideally,,
+238,fairly,,
+238,unfair,,
+239,inappropriate,,
+240,fame,,
+240,infamous,,
+242,majority,,
+242,minor,,
+244,brighten,,
+245,brilliance,,
+247,comfort,,
+247,comfortably,,
+247,cozy,,
+247,uncomfortable,,
+248,please,,
+248,pleased,,
+248,pleasure,,
+248,unpleasant,,
+249,convenience,,
+249,inconvenience,,
+249,inconvenient,,
+251,terribly,,
+251,terrify,,
+251,terror,,
+251,terrorism,,
+252,awe,,
+252,awesome,,
+252,awfully,,
+253,fat,,
+253,thick,,
+253,thinner,,
+254,loose,,
+254,tighten,,
+255,loosen,,
+255,tight,,
+256,cooked,,
+257,empty-handed,,
+257,full,,
+258,rough,,
+258,smoothly,,
+259,directly,,
+259,director,,
+260,familiarity,,
+261,similarity,,
+261,simulation,,
+262,difference,,
+262,differentiate (A from B),,
+263,invariably,,
+263,variable,,
+263,variation,,
+263,variety,,
+264,general,,
+264,specifically,,
+264,specify,,
+265,commonly,,
+265,commonplace,,
+266,usual,,
+267,addition,,
+267,additional,,
+267,additionally,,
+268,decrease,,
+268,increasingly,,
+269,reduction,,
+270,division,,
+270,multiply A by B,,
+271,countable,,
+271,countless,,
+271,uncountable,,
+272,outweigh,,
+272,weight,,
+273,headquarters,,
+274,lottery,,
+276,overrate,,
+276,rating,,
+278,lacking,,
+280,readily,,
+280,readiness,,
+280,ready-made,,
+281,preparation,,
+282,adjustment,,
+283,app,,
+283,appliance,,
+283,applicant,,
+283,application,,
+284,suitable (for ~ ),,
+286,scenery,,
+286,scenic,,
+289,experienced,,
+289,inexperienced,,
+290,timely,,
+290,timetable,,
+293,aged,,
+293,antiaging,,
+293,middle-aged,,
+294,generate,,
+296,recent,形,最近の
+297,be accustomed to doing,類,〜するのに慣れている
+298,late,反,遅く，遅い
+299,first-aid,形,応急の（← 医者が来るまでの最初の手助け）
+299,first-class,形,一流の，最高級の
+299,first-hand,形,（経験や知識などが）直接の
+301,modernization,名,近代化，現代化
+301,modernize,動,〜を最新式にする，近代化する
+302,A.D.,参,西暦（＝Anno Domini「我らの主（イエス・キリスト）の年に」）
+303,spending,名,出費
+305,return,反,〜を返却する（＝give 〜 back）
+307,rental,形,賃貸の
+307,tenant,参,入居者
+308,provided,接,もし〜なら，〜という条件で
+308,provision,名,供給，用意
+309,a cardboard box,参,段ボール箱
+309,aboard,前/副,（〜に）乗って
+309,cardboard,参,段ボール〈不可算〉
+309,signboard,参,（店の）看板
+310,burnable,参,燃えるごみ
+310,junk,参,がらくた
+310,unburnable,参,燃えないごみ
+311,itemize,動,〜を項目別にする
+312,wheelbarrow,名,手押し一輪車
+312,wheelchair,名,車いす
+313,notable,形,注目すべき
+313,notably,副,とりわけ
+314,presence,名,出席，いること
+314,presentation,名,発表，プレゼン
+315,a bargain counter,参,特売場
+315,a bargain hunter,参,掘り出し物を漁る人
+316,stuffed,形,剥製の，ぬいぐるみの，詰めた
+317,(shoe)lace,参,靴ひも
+317,needle,参,針
+317,thread,参,糸
+318,leisurely,形/副,のんびりした／のんびりと
+320,furnish,動,〜を備え付ける
+320,furnishings,名,（カーペットなどを含む）家具，調度品
+321,defrost,参,〜を解凍する
+321,microwave,参,〜を電子レンジで温める
+322,human traffic (king),参,人身売買（←人を移動させること）
+323,sale,名,販売，売上高
+323,seller,名,売り手，売れる商品
 324,payment,名,支払い
+325,weary,形,疲れきった
+326,costume,参,（舞台用，民族，時代特有の）衣装
+326,dress,参,（女性用の）服，ワンピース
+326,"food, clothing, and shelter",参,衣食住
+327,a wedding (ceremony),参,結婚式
+327,bride,参,花嫁（←bread「（パン）を焼く人」から）
+327,divorce,反,離婚
 327,marriage,名,結婚
 328,greeting,名,挨拶
-338,direct,形,直接の
-339,cultural,形,文化の，文化的な
-340,artist,名,芸術家
-340,artistic,形,芸術的な
+329,orderly,形,秩序だった
+330,spacious,参,広々とした
+332,on-site,形,現地[現場]の
+333,a mile,参,1マイル（＝約1609 m）
+333,garden,参,〈英〉（草花が植えてある）庭，〈米〉（yard 内の）草花が植えてある部分
+333,gardening,参,庭いじり
+334,bottom line,参,最重要事項
+334,top,反,頂上，上の部分，最高位
+335,headline,参,（新聞などの）見出し
+338,directory,参,住所録，名簿
+339,cultural,形,文化の
+340,artisan,名,職人
+340,artistic,形,芸術の
+341,anime,参,（日本の）アニメ
+341,cartoonist,名,漫画家
+341,manga,参,（日本の）マンガ〈不可算〉
+342,fiction,参,（集合的に）小説〈不可算〉
+342,novelist,名,小説家
+342,novelty,名,目新しさ
+343,instrumental,形,役に立つ，楽器で演奏される
+344,be attuned to ~,参,〜に調和している
+345,chapter,参,章
+345,letter,参,文字
+345,phrase,参,フレーズ
+346,headline,参,（新聞などの）大見出し
+350,spelling,名,つづり方
+351,pronounced,形,明白な
+351,pronunciation,名,発音
+352,sign language,参,手話
+352,signal,名,合図，兆候
+353,meaning,名,意味
+353,meaningful,形,意味がある
+353,meaningless,反,意味がない
+354,a publishing company,参,出版社（＝a publisher）
+354,publication,名,出版，公表
+356,trustworthy,形,信頼に値する，信頼できる
+357,dependence,名,依存
+357,dependent,形,依存している
+358,reliable,形,信頼できる，確実な
+358,reliably,副,確実に，信頼を裏切らずに
+358,reliance,名,信頼
+359,I'll keep my fingers crossed.,参,うまくいくといいですね（←人差し指と中指を交差させて十字架を作るしぐさから）
+359,prayer,名,祈り
+360,beggar,名,乞食
+361,preferable,形,好ましい
+361,preference,名,好み
+362,groan,参,（苦痛，悲嘆で）うめく
+363,hateful,形,ひどくいやな，不愉快な
+363,hatred,名,憎しみ
+364,worried,形,心配して
+365,anxiety,名,心配，切望
+366,satisfaction,名,満足
+366,satisfactory,形,基準を（ギリギリ）満たしている
+367,annoyance,名,苛立ち
+367,annoyed,形,（人が）苛立って
+367,annoying,形,苛立たしい
+369,disturbance,名,妨害，かく乱
+370,frightening,形,ぞっとするような
+371,regretful,形,（人が）後悔している
+371,regrettable,形,（物事が）残念な
+372,favorable,形,好ましい
+372,favorite,形,一番好きな
+373,interested,形,興味がある
+373,interesting,形,面白い，興味を引き起こす
+373,self-interest,名,利己主義
+375,deadline,参,締切
+375,overdue,形,期限が過ぎた
+376,reasoning,名,推論
+378,effective,形,効果的な
+379,influential,形,影響力のある
+380,ending,名,（物語などの）結末
+380,endless,形,果てしない
+381,because,参,be[＝by]＋cause[原因]→「原因によって」が元の意味
+381,causal,形,因果関係を示す，原因となる
+387,right-handed,参,右利きの
+387,turn right,参,右に曲がる
+388,completely,副,完全に
+389,hard,参,難しい
+391,impartial,反,偏らない
+391,partial,形,部分的な
+393,evenly,副,均等に
+394,exact,形,正確な
+395,gradual,形,徐々の
+395,rapidly,反,急速に
+396,thereafter,副,その後
+396,thereby,副,それによって
+400,exception (to ~),名,（〜の）例外
+400,exceptional,形,例外的な，素晴らしい
+402,criticism,名,批判
+403,accusation,名,罪，告発
+404,insistence,名,主張
+405,objection (to ~),名,（〜への）反対
+407,controversy,名,（長期間にわたる）論争
+410,demanding,形,努力を要する
+411,desirable,形,望ましい
+412,appraise,他,（正確に能力，土地などを）評価する
+413,honorable,形,栄誉ある
+415,reference,名,言及，参照，照会先
+415,referendum,参,国民投票（←国民の意見を参照する）
+417,conveyer,名,運搬人，運搬機
+417,conveyor-belt,参,ベルトコンベアー
+418,demonstration,名,はっきり示すこと，デモ
+419,emphasis,名,強調
+419,overemphasize,他,〜を強調しすぎる
+420,exaggeration,名,誇張
+422,respondent,名,回答者，答弁者
+422,response,名,返答，反応
+423,murmur,参,（ぼそぼそと）つぶやく
+423,rattle,参,（風などで）ガタガタ音がする
+424,remarkable,形,注目すべき
+425,observance,名,遵守
+425,observation,名,観察，（観察に基づく）意見
+425,observer,名,観測者，立会人
+426,theoretical,形,理論的な，理論上の
+426,theoretically,副,理論上は
+426,theorize,動,〜を理論立てる
+427,analyst,名,分析家
+427,analyze,他,〜を分析する
+427,synthesis,反,合成，統合（syn-[一緒に]＋-thesis[置く]）
+428,phenomenal,形,異常な，驚くべき
+429,appliances,参,（電気，ガス）器具
+429,devise,動,（新たな方法などを）考案する
+429,gadget,参,（気のきいた）装置
+430,experimental,形,実験的な，実験に基づく
+431,chemist,名,化学者，〈英〉薬剤師
+431,chemistry,名,化学（的性質）
+433,denuclearization,参,非核化
+434,statistically,副,統計的に
+435,groupie,参,追っかけ
+435,pursuit,名,追跡，追求
+436,accomplished,形,熟練した
+436,accomplishment,名,やり遂げること，業績
+438,fulfilling,形,充実した，達成感を与える
+439,devoted,形,献身的な，専念して，専門の
+439,devotion,名,献身，愛情
+441,aimless,形,目的のない
+441,aimlessly,副,目的もなく
+442,challenging,形,（大変だが）やりがいのある，困難な
+443,court,参,裁判所
+445,appetizer,名,〈米〉前菜，食前酒
+446,starvation,名,飢餓，餓死
+447,mentally,副,精神的に
+447,mind,参,精神，知力
+447,physical,反,身体的な，物理的な（←形のある物）
+448,have two days off,参,2日休む
+448,restless,形,落ち着かない
+448,restroom,名,（デパートなどの）トイレ，洗面所
+448,take two days off,参,2日休む
+449,clinical,参,臨床の
+449,surgeon,名,外科医
+449,surgical,形,外科の
+451,backache,参,腰痛
+451,toothache,参,歯痛
+455,recovery,名,回復，取り戻すこと
+457,blow ~ up,参,（風船などを）膨らませる
+457,swollen,形,腫れた，腫れ上がった
+458,sneeze,参,くしゃみをする
+459,blood,名,血
+459,bloody,形,血なまぐさい，血だらけの
+461,exhaustion,名,（極度の）疲労，枯渇
+461,exhaustive,形,徹底的な
+462,cure-all,参,万能薬
+462,incurable,形,不治の
+463,blind,参,目が見えない
+463,deaf,参,耳が聞こえない
+463,disability,名,障がい
+463,dumb,参,口のきけない
+464,get a massage,参,マッサージをしてもらう
+465,fat,参,脂肪
+465,muscular,形,筋肉の
+467,sensibility,名,感性，感受性
+467,sensible,形,分別のある，賢明な
+467,sensitive,形,敏感な，繊細な
+468,sweater,名,セーター
+468,sweatshirt,名,トレーナー
+468,sweatshop,名,搾取工場（低賃金・長時間労働の工場）
+469,gender-free,参,性差を伴わない
+470,acquire French,参,フランス国籍を得る
+470,have French,参,フランス国籍を持っている
+470,multinational,形,多国籍の
+471,citizenship,名,市民権（←ある国に属する権利）
+471,national,参,国民の，国の
+472,civilian,名/形,（軍人，警察官に対して）民間人，一般市民／民間の
+472,military,反,軍の
+473,race,名,人種，競争
+473,racism,名,人種差別
+473,sexism,参,性差別
+474,metropolitan,参,大都市の
+474,urban,反,都会の
+475,domestication,名,（動物を）飼い慣らすこと
+476,globalization,名,グローバル化
+476,globe,名,地球，球
+478,borderline,形,きわどい（←境界線上の）
+478,Doctors Without Borders,参,国境なき医師団
+482,equality,名,平等
+482,equation,参,方程式
+482,inequality,反,不平等
+482,the equator,参,赤道（←地球を等しく二分する）
+483,relation,名,関係，親戚関係
+485,megatrend,名,（世の中の）大きな傾向
+485,trendy,形,流行の
+487,religious,形,信心深い
+488,morale,参,士気
+488,morality,名,道徳性
+490,prosper,動,繁栄する
+490,prosperous,形,繁栄した
+493,discriminate,動,差別する，識別する
+494,charitable,形,慈善の
+495,beneficial,形,有益な
+498,individualism,名,個人主義
+498,individuality,名,個性
+499,officer,名,将校，（高い地位の）役人
+500,emigrate,動,（母国を離れて）移住する
+500,immigrate,動,（永住するためにほかの国に）移住する
+500,immigration,名,（外国からの）移住
+500,migrate,動,（鳥，魚が）移動する，渡る
+501,compulsory,反,義務的な
+501,voluntary,形,自発的な
+502,interaction,名,交流，やりとり，相互作用
+502,interactive,形,双方向の，相互に作用する
+503,contribution,名,貢献，寄付，寄稿
+505,imposing,形,堂々とした，印象的な
+506,accessible,形,利用［接近］可能な
+506,accessory,名,付属品（←近くにある物）
+508,accountability,参,説明責任
+508,responsibility,名,責任
+510,election,名,選挙
+511,industrial,形,工業の
+511,industrialized,形,工業化した
+511,industrious,形,勤勉な
+512,expense,反,費用
+513,nonprofit,形,非営利の
+513,profitable,形,利益が出る，有益な
+514,tax collector,参,税務署員
+514,tax-free,形,免税の
+515,expend,他,〜を費やす
+515,expensive,形,高価な
+515,inexpensive,反,安価な
+517,a bank balance,参,預金残高
+517,withdraw,反,〜を引き出す
+519,blue-collar workers,参,肉体労働者
+519,white-collar workers,参,頭脳労働者
+521,consumer,名,消費者
+521,consumerism,名,消費者主義
+521,consumption,名,消費
+521,time-consuming,形,時間のかかる
+523,investment,名,投資，授与
+524,export,反,〜を輸出する／輸出，輸出品
+525,finance,名,財政，資金
+525,fiscal,参,会計の
+526,fire,反,〜をクビにする
+527,employee,名,従業員
+527,employer,名,雇い主
+527,employment,名,雇用
+527,recruit,参,（従業員，学生などを）新しく入れる
+528,resignation,名,辞職
+529,qualification,名,資格
+529,qualified,形,資格のある，適格の
+530,assignment,名,宿題，割り当て，配属
+533,professional,形/名,専門的な，プロの／専門家，プロ
+534,unemployed,形,失業した
+535,documentary,形/名,文書の／記録作品，ドキュメンタリー
+537,a head office,参,（銀行などの）本店
+538,retailer,名,小売業者
+539,subordinate,参,部下
+540,systematic,形,体系的な
+541,restructuring,名,再構成，リストラ（←組織の再編）
+541,structural,形,構造上の
+542,architect,名,建築家，設計者
+543,construct,他,〜を建設する
+543,constructive,形,建設的な
+544,dysfunction,名,機能不全
+544,functional,形,機能している，機能的な
+544,malfunction,名/自,故障／故障する，正常に動かない
+547,cutting-edge,形,最先端の（←刃先から）
+547,double-edged,参,両刃の
+548,cosmetics,参,化粧品
+550,composer,名,作曲家，作る人
+550,composition,名,組み立て，構成，作品
+551,attachment,名,付属品，愛着
+551,detach,反,〜を切り離す
+552,connection,名,関係，つながり，コネ
+554,association,名,連想，協会
+555,sticky,形,ねばねばした
+555,stuck-up,参,〈口語〉お高くとまった，高慢な
+556,theft,名,窃盗，盗み
+557,criminal,名/形,犯人／犯罪の
+558,motivate,他,（人）に動機を与える
+558,motivation,名,意欲，動機づけ
+559,punishment,名,罰
+560,violation,名,違反，侵害
+560,violent,形,暴力的な
+561,illegal,反,違法の
+561,illegally,副,違法に
+562,foe,参,敵（＊書き言葉）
+562,friend,反,友人
+562,hostility,参,敵意
+564,competition,名,競争，競技会，コンペ
+564,competitive,形,競争の，競争力のある，競争心の強い
+564,competitor,名,競争相手
+564,petition,名,嘆願，申し立て
+568,harmful (to ~),形,（〜に）有害な
+568,harmless,反,無害の
+569,invader,名,侵略者，侵入者
+569,invasion,名,侵略，侵入
+569,respect,反,〜を尊重する
+570,endangered,形,絶滅の危機に瀕した
+571,interruption,名,中断，邪魔
+572,spoiler,名,ネタをばらす人，台無しにする人
+574,absolute,反,絶対的な
+574,relatively,副,比較的
+574,relativity,名,相対性
+575,arrival,反,到着
+575,depart,自,出発する
+575,I am off to school.,参,行ってきます。（＊ただし，日本語ほど固定表現ではない。）
+575,I am off to work.,参,行ってきます。（＊ただし，日本語ほど固定表現ではない。）
+575,I am off.,参,行ってきます。（＊ただし，日本語ほど固定表現ではない。）
+576,destiny,参,運命
+578,vehicular,形,乗り物の，車両の
+581,leading,形,一流の，大手の
+582,raise,参,〜を上げる
+583,flowchart,名,フローチャート，流れ図
+583,influx,名,流入
+583,overflow,名,氾濫
+584,outburst,名,噴出
+585,meltdown,名,（原子炉の）炉心溶融，（株，相場の）急落
+585,melting,形,溶けていく
+586,commuter,名,通勤者
+587,accompaniment,名,伴奏，添え物
+588,emission,名,放出（量），放射（物）
+589,progressive,形,進歩的な
+590,advanced,形,進歩した，上級の
+590,advancement,名,進歩，昇級
+591,dealer,名,販売人，販売店
+593,treatment,名,扱い，治療
+594,a key to ~,参,〜の鍵
+594,cue,参,合図
+595,restriction,名,制限
+596,limitation,名,制限（すること）
+596,limited,形,限られた，有限の
+598,banish,参,〜を追放する（←出ていけと叫ぶ）
+599,refusal,名,拒否，拒絶
+600,rejection,名,拒絶，拒否
+601,dissuade (A from doing),反,（A）に〜しないよう説得する
+601,persuasion,名,説得
+601,persuasive,形,説得力のある
+602,conviction,名,（事実に基づく）確信
+602,convincing,形,説得力のある
+603,inspiration,名,霊感，インスピレーション
+604,discouragement,名,落胆
+604,encourage,反,〜を促す，奨励する
+605,promotion,名,促進，出世
+607,expansion,名,拡大，膨張，進出
+608,extension,名,拡張，増大，内線
+608,extensive,形,広範囲の
+610,widespread,形,広範囲にわたる
+611,bow(tie),参,蝶ネクタイ
+611,untie,反,〜をほどく
+612,fastener,名,ファスナー（服などの留め具）
+612,zip ~ up,参,〜のチャック（ジッパー）を閉める
+613,fixed,形,固定した，一定した
+614,installation,名,設置
+615,irresistible,形,抵抗できない，大変魅力的な
+615,resistance,名,抵抗（力）
+615,resistant,形,抵抗する，抵抗力のある
+616,obedience,名,従順さ
+616,obedient (to ~),形,（〜に）従順な
+617,engaged,形,従事した，婚約した
+617,engagement,名,関与，約束，婚約
+618,bomb,参,爆弾
+620,cuddle,参,（ぬいぐるみや子ども）を抱きしめる，寄り添う
+620,hold ~ in one's arms,参,（赤ちゃん）を抱く（←〜を両手で抱える）
+625,stretcher,名,担架
+626,fall down,参,転倒する
+626,fall over,参,転倒する
+627,pressing,形,差し迫った
+627,pressure (on ~),名,（〜に対する）プレッシャー，圧力
+632,shake one's head,反,首を横に振る（＊否定，拒否などを表す。）
+634,have a runny nose,参,鼻水が出る
+634,pick one's nose,参,鼻をほじる
+634,snore,参,いびきをかく
+636,burial,名,埋めること，埋葬
+636,dig ~ up,反,〜を掘り戻す
+637,performance,名,遂行，演技，演奏，実績
+637,performer,名,演技者，演奏者，実行者
+638,adoption,名,採用，養子縁組
+640,scattered,形,散乱した，点在した
+640,sprinkle,参,（水，粉）をまき散らす
+641,folding,形,折りたたみ式の
+641,unfold,反,展開する
+642,hanger,名,ハンガー，洋服掛け
+642,hangover,名,二日酔い
+644,striking,形,著しい（←打つような）
+644,stroke,参,脳卒中
+646,protection,名,保護
+646,protective,形,保護の
+647,twister,名,竜巻（←激しい渦巻き状の上昇気流）（≒tornado）
+648,skip rope,参,縄跳びをする
+648,skipping,名,〈米〉飛び級
+649,exposition,名,（万国）博覧会（＝expo.）
+649,exposure,名,露出，暴露
+650,stir-fry,他,（フライパンでゆすりながら）〜をすばやく炒める
+652,an apple polisher,参,〈米〉ゴマをする人
+653,attendance,名,出席（率，者）
+653,attention,名,注意
+653,attentive,形,注意深い
+654,imitation,名,模倣，模造品
+655,conductor,名,指揮者，（列車の）車掌，伝導（体）
+656,struggling,形,もがいている
+657,burned,形,燃えた
+657,burning,形,燃えている
+657,get a (sun)tan,参,（浅黒く）日焼けする
+657,get a sunburn,参,（炎症を起こして）日焼けする
+658,cheating,名,カンニング，不正行為
+659,participant,名,参加者
+659,participation,名,参加
+660,existence,名,存在，生存，生活
+660,existing,形,現存する
+662,occurrence,名,出来事，生じること
+662,recur,動,再発する
+664,requirement,名,必要となるもの，必要条件
+667,maintenance,名,維持
+668,lasting,形,永続的な，長持ちする
+668,long-lasting,形,長続きする
+669,persistence,名,持続，粘り強さ
+669,persistent,形,持続する，粘り強い
+670,exam,名,試験
+670,examination,名,検査，試験
+671,regain,他,〜を取り戻す
+672,obtainable,形,入手可能な
+673,acquired,形,習得した，後天的な
+673,acquisition,名,習得，獲得，買収
+673,innate,反,生まれつきの
+675,illogical,反,非論理的な
+675,logic,名,論理（学）
+675,logically,副,論理的に
+677,instruct,他,〜を指示する，指導する
+677,instructive,形,ためになる，有益な
+677,instructor,名,インストラクター
+678,determination,名,決定，決意
+679,conclusion,名,結論
+680,distinct,形,はっきりした
+680,distinction,名,区別
+680,distinguished,形,著名な（←ほかと明確に区別される）
+681,classification,名,分類
+681,classified,形,分類された，機密の
+682,estimated,形,推定の
+682,overestimate,他,〜を過大評価する
+682,underestimate,他,〜を過小評価する
+683,organization,名,組織，まとめること
+683,organized,形,組織化された，うまくまとまった
+684,recognition,名,認識
+685,supposedly,副,おそらく
+685,supposition,名,仮定，想定
+686,assuming,接,〜と仮定すれば
+686,assumption,名,思い込み，引き受けること
+687,carefree,形,のんびりした（←心配がない）
+687,caregiver,名,世話をする人，介護士
+688,approval,名,承認
+688,disapprove (of ~),反,（〜に）反対する
+689,noticeable,形,目立った，注目に値する
+690,awareness,名,意識，認識
+690,unaware,反,気がついていない
+691,consciousness,名,意識
+691,health-conscious,形,健康を意識した
+691,unconscious,反,無意識の，意識を失った
+692,concern,名,懸念，関心
+692,concerning,前,〜に関する
+693,disregard,反,〜を無視する（←〜を見ない）
+693,regarding,前,（新たな話題を提供して）〜に関しては
+693,regardless (of ~),参,（〜と）無関係に
+694,commission,名,委員会，手数料
+694,commitment,名,約束，献身
+694,committee,名,委員会（commit-[委ねる]＋-ee[〜される人]）
+695,doubtful,形,疑わしい
+696,memento,参,記念物
+696,memoirs,参,回顧録
+696,memorization,名,暗記
+696,memory,名,記憶力，思い出
+699,recollect,参,〜を思い出す（＊recall より堅い語。）
+699,recollection,参,思い出，回想
+703,elimination,名,排除，予選
+704,recycle,参,〜を再利用する（←別のものに作り変える）
+705,removal,名,除去，移動
+705,remover,名,除去剤
+706,coal,参,石炭
+706,petroleum,参,石油
+706,resourceful,形,困難に立ち向かえる
+707,conservationist,名,環境保護論者
+707,conserve,他,〜を保護する，保全する
+708,preservation,名,保護，保存，維持
+708,sanctuary,参,禁猟区
+709,disastrous,形,大災害を引き起こす，悲惨な
+710,a (fixed) star,参,恒星
+710,a moon,参,衛星
+710,planetary,形,惑星の
+711,environmental,形,環境の
+711,environmentalist,名,環境保護論者
+711,environmentally,副,環境に
+711,green,参,環境にやさしい
+712,horizontal,形,水平の
+712,horizontally,副,水平に
+712,vertically,反,垂直に
+713,lay,他,〜を横たえる
+713,lie,反,横になる
+713,wear many layers of clothes,参,重ね着をする
+714,agricultural,形,農業の
+714,farmland,参,農地
+714,irrigation,参,灌漑
+716,sand,参,砂
+717,weeding,名,草刈り，除草
+717,weedkiller,参,除草剤
+718,nectar,参,蜜
+718,pollinate,他,〜に受粉する
+719,a drowned man,参,溺れ死んだ人
+719,a drowning man,参,溺れて（死にかけて）いる人
+720,leakage,名,漏れ
+722,atmospheric,形,大気の
+722,the ozone layer,参,オゾン層
+724,humidifier,名,加湿器
+724,humidity,名,湿度，湿気の多さ
+725,acid rain,参,酸性雨
+725,carbon dioxide,参,二酸化炭素
+725,frigid,反,極寒の，寒帯の
+725,subtropical,参,亜熱帯の
+725,the temperate zone,参,温帯
+726,lunar,参,月の
+727,cross-species,参,異種間の
+727,subspecies,参,亜種
+729,a fire extinguisher,参,消火器
+729,active,反,活動的な
+729,extinction,名,絶滅
+729,extinguish,他,（火）を消す，〜を絶滅させる
+730,a (zoo) keeper,参,（動物園の）飼育係
+730,bottle-feed,参,（赤ん坊）を人工乳で育てる
+730,feedback,名,（利用者などの）反響，意見
+731,energetically,副,精力的に
+731,energy,名,活力，エネルギー
+732,greed,名,貪欲さ，強欲さ
+733,bravely,副,勇敢に
+733,bravery,名,勇敢さ
+733,cowardly,反,臆病な
+734,generosity,名,気前のよさ
+734,stingy,反,ケチな
+735,intellect,名,知性
+736,curiosity,名,好奇心
+737,imaginable,形,想像できる，考えうる限りの
+737,imaginary,形,架空の
+738,affordable,形,手ごろな価格の
+739,eagerly,副,熱心に
+739,eagerness,名,熱心，熱望
+740,selfishly,副,利己的に
+741,aggression,名,攻撃，侵略
+742,cruelty,名,残酷さ
+742,merciful,反,慈悲深い
+743,addict,名,中毒患者
+743,addiction,名,中毒
+743,addictive,形,中毒性がある
+746,guilt,名,罪
+747,innocence,名,無実
+748,sincerely,副,誠実に
+748,sincerity,名,誠実，誠意
+749,boastful,反,自慢している，鼻にかけている
+750,clever,反,利口な
+750,stupidity,名,愚かな行為[発言]
+751,indifference,名,無関心
+752,late,反,遅れて
+752,punctually,副,時間きっちりに
+753,brave,反,勇敢な
+753,chicken,参,弱虫
+753,cowardice,名,臆病
+753,cowardly,形,臆病な
+754,precisely,副,正確に，ちょうど
+754,precision,名,正確さ
+755,accuracy,名,正確さ
+755,accurately,副,正確に
+755,inaccurate,反,不正確な
+756,properly,副,適切に，正しく
+757,messy,反,散らかった，汚い
+758,efficiency,名,能率，効率
+758,efficiently,副,能率よく
+759,reasonably,副,ほどよく
+760,insignificant,反,重要でない
+760,significance,名,重要性
+760,significantly,副,かなり
+760,signify,他,〜を示す，意味する
+762,essence,名,本質，エキス
+762,essentially,副,本質的に
+763,application,反,応用
+763,fundamentalism,名,（宗教の）原理主義，（キリスト教の）根本主義
+765,critically,副,批判的に，決定的に
+766,seriously,副,真剣に，深刻に
+767,complexity,名,複雑さ
+768,simple,反,単純な
+769,delicacy,名,（キャビアなどの）珍味，思いやり，繊細さ
+770,plainly,副,はっきりと，明らかに
+771,obviously,副,明らかに
+772,remarkably,副,著しく
+774,variety,名,種類，多様性
+775,diverse,形,多様な
+775,diversify,他,〜を多様化する
+776,assortment,名,詰め合わせ（←分類されたもの）
+777,marvel (at ~),自,（〜に）驚く
+778,act,自,行動する
+778,activate,他,〜を起動させる，活性化させる
+778,activist,名,活動家
+778,passive,反,消極的な
+779,negative,反,否定的な
+780,a water purifier,参,浄水器
+780,mixed,反,混ざった
+780,purely,副,まったくの，純粋に
+781,steadily,副,着実に
+781,volatile,反,不安定な
+782,flexibility,名,柔軟性
+782,rigid,反,硬直した，柔軟性に欠ける
+783,orchard,参,果樹園
+783,ripen,自,熟する
+784,stabilize,他,〜を安定させる
+785,positive,反,肯定的な
+786,vaguely,副,曖昧に，漠然と
+787,a computer geek,参,コンピュータおたく
+787,a computer nerd,参,コンピュータおたく
+787,weirdo,名,変な人
+788,roughly,副,おおよそ
+788,smooth,反,なめらかな
+789,severely,副,ひどく
+790,active,反,能動的な，積極的な
+791,vanity,名,うぬぼれ，虚栄心（←自分の中身が空っぽなので褒めてほしいという気持ち）
+792,counterfeit,参,（紙幣などが）偽造の
+792,genuine,反,本物の
+793,risk,名,危険（性）
+793,risk doing,他,〜の危険を冒す
+794,even,反,偶数の
+795,ignorance,名,無知，無学
+797,invalid,反,妥当でない，有効でない
+797,validate,他,〜を有効にする
+797,validity,名,有効性
+798,rarely,副,めったに〜ない
+799,causal,参,因果関係の（＊つづりが似ているので注意。）
+799,formal,反,正式な
+800,availability,名,利用できること，有効性
+801,practically,副,事実上，実際的に
+801,theoretical,反,理論上の
+802,concrete,反,具体的な
+803,newly,参,新たに
+803,renew,参,〜を一新する
+804,brand-new,反,新品の
+804,firsthand,反,直接体験によって得た
+805,rapidity,名,急速さ
+805,rapidly,副,急速に（＝with rapidity）
+806,urgency,名,緊急性
+807,deep,反,深い
+808,a mechanical pencil,参,シャープペンシル
+808,sharpen,動,〜を鋭くする
+808,sharply,副,厳しく，急激に，はっきりと
+809,upset,反,気が動転した；〜を動揺させる
+810,nude,参,（芸術的）裸の
+811,dependence,名,依存
+811,dependent,反,依存した
+811,independence,名,独立
+812,relaxed,反,くつろいだ
+812,tension,名,緊張，張り詰めていること
+813,narrowly,副,かろうじて
+813,spacious,反,広々とした（←space「空間」から）
+814,vacancy,名,空室，空席
+814,vacantly,副,ぼんやりと
+815,vividly,副,はっきりと，鮮明に
+817,object,参,目的語
+817,subject,参,主語
+817,subjective,反,主観的な
+818,automatic,反,自動の
+819,alive,参,生きている
+819,liken (A to B),他,（A）を（Bに）例える
+821,tendency,名,傾向
+822,deserving (of ~),形,（〜に）値する
+826,uniquely,副,比類なく，独自に
+827,particularly,副,特に，とりわけ
+828,type,名,型，典型
+828,typically,副,一般的に，典型的に
+829,generalization,名,一般化
+829,generalize,他,〜を一般化する
+829,generally,副,一般に
+830,extraordinary,反,非凡な
+832,calculation,名,計算
+832,calculator,名,計算機
+833,countermeasures,名,対抗策
+833,immeasurable,形,計り知れない
+833,measurement,名,測定
+837,disproportionate,形,不釣り合いな
+840,mass-produce,他,〜を大量生産する
+840,massive,形,巨大な，大量の
+841,shortcoming,名,欠点（＊堅い語。）
+844,arrangement,名,手配，取り決め，配列
+845,adaptable,形,適応力がある
+845,adaptation,名,適応
+847,a fitting room,参,試着室
+847,fitness,名,健康
+847,one-size-fits-all,参,フリーサイズの
+848,emergent,形,緊急の，新興の
+849,occasional,形,時折の
+849,occasionally,副,時折
+850,accident,名,事故，偶然
+850,accidentally,副,偶然に，誤って（＝by accident）
+850,deliberate,反,意図的な
+851,currency,名,通貨（←流通しているもの）
+851,currently,副,現在
+853,perpetual,参,絶え間ない（＊マイナスイメージのことが多い。）
+853,temporary,反,一時的な
+854,ex-,参,前の
+855,formerly,副,以前は
+855,incumbent,反,現職の
+855,the latter,反,後者
+856,old-fashioned,反,時代遅れの
+857,late,形/副,遅い，故〜／遅く
+857,of late,参,最近（＊lately より堅い表現。）
+858,immediate,形,当面の
+859,dead heat,参,（競争での）同着（≠close race「接戦」の意味ではないので注意。）
+859,deadlock,参,膠着状態（←完全に閉じ込められた状態）
+860,century,参,100年
+860,millennium,参,"1,000年"
+862,replacement,名,取り替え，代用品
+864,substitution,名,代理，交替
+865,submission,名,提出，服従
+865,submissive,形,従順な
+866,alternate,自/他,交互に起きる／〜を交互にする
+867,delivery,名,配達
+867,send ~ by courier service,参,宅配便で〜を送る
+868,enclosed,形,同封の，閉ざされた
+869,envelop,動,（毛布や霧などで）〜を包む
+869,postcard,参,はがき
+871,pack,参,〜を荷作りする
+875,luxurious,形,豪華な
+875,simple,反,質素な
+876,buy ~ in cash,参,〜を現金で買う
+878,book,参,（主に〈英〉）〜を予約する
+878,non-reserved seats,参,自由席（←予約されていない席）
+878,reserve,他/名,〜を予約する／禁猟区
+878,reserved,形,控え目な
+878,unreserved seats,参,自由席（←予約されていない席）
+879,fussy,形,すぐ騒ぎ立てる，口うるさい
+880,rewarding,形,やりがいのある
+882,receipt,名,領収書，受領
+882,receptionist,名,ホテルの受付係
+882,receptive,形,受け入れようとする
+882,recipient,名,（賞などを）受け取る人，（ドナーから）臓器を受け取る人
+883,a refill,参,（飲み物などの）お代わり
+883,a second helping,参,（食事の）お代わり
+884,detergent,名,洗剤
+885,snore,参,いびきをかく
+885,talk in one's sleep,参,寝言を言う
+886,oversleep,自,寝過ごす
+886,wake-up call,参,（ホテルなどの）モーニングコール
+887,a ticket office,参,（駅，劇場の）切符売り場
+889,appoint,他,〜を任命する，（時間や場所）を指定する
+889,appointed,形,任命[指定]された
+890,consultant,名,コンサルタント（←ある分野において専門的な知識を持ち，顧客の相談に応じたり，助言を提供したりする人）
+891,registration,名,登録
+892,blond-haired,参,金髪の
+892,gray-haired,参,白髪の
+893,subscriber,名,購読者，加入者
+893,subscription,名,定期購読，サブスク（サブスクリプションの略）
+894,a guaranteed fee,参,ギャラ，出演契約金
+895,a dish towel,参,（食器を拭く）布巾
+895,wiper,名,（車の）ワイパー（←車の前面の窓ガラスにかかる雨滴や汚れを拭い取る装置）
+896,sweeping,形,広範囲にわたる，全面的な
+898,divorced,形,離婚した
+898,marriage,反,結婚
+898,marry,反,〜と結婚する
+899,fatal,形,致命的な，運命を決めるような（←文字どおり，人の死を引き起こすこともある。）
+899,fatality,名,死者数
+900,destine,他,〜を運命づける
+904,bitterly,副,激しく
+904,sweet,反,甘い
+908,facilitate,他,〜を簡単にする
+909,breadth,参,幅（＊やや堅い表現）（←broad）
+909,depth,参,深さ（←deep）
+909,heighten,他,〜を高める
+909,length,参,長さ（←long）
+909,width,参,（幅の）広さ（←wide）
+910,distance,名,距離
+910,distantly,副,遠くに，よそよそしく
+910,faraway,参,（地理的に）遠い
+911,location,名,位置，場所
+911,relocate,他,（会社など）を移転する
+912,be preoccupied with ~,参,〜で頭がいっぱいだ（←あらかじめ占有されている）
+912,occupancy,名,占有
+912,occupation,名,職業，占領
+913,surroundings,名,（物的）環境（←取り囲むもの）
+914,classic,名/形,古典文学／最高級の，典型的な
+915,civilize,他,〜を洗練させる，文明化する
+915,civilized,形,文明化した
+919,literary,形,文学の
+920,comedy,反,喜劇
+920,comic,反,喜劇的な
+920,tragic,形,悲劇的な
+921,prose,参,散文
+924,saying,参,ことわざ，言い回し（＊a proverb＝a well-known saying）
+925,the standard language,反,標準語
+926,fluency,名,流暢さ
+926,fluently,副,流暢に
+927,translation,名,翻訳
+927,translator,名,翻訳者
+928,definite,形,明確な（←境界が明確な）
+928,definition,名,定義，規定
+929,interpretation,名,解釈，通訳
+929,interpreter,名,通訳（者）
+930,quotation,名,引用
+931,illiterate,反,読み書きができない，（ある特定の分野に関する）知識がない
+931,literacy,名,読み書きができること，（ある特定の分野に）秀でていること
+931,literal,形,文字どおりの
+931,literate,形,読み書きができる，（ある特定の分野に）秀でている
+932,indication,名,指示
+932,indicative,形,指示する，暗示する
+933,conceal,反,〜を隠す
+933,revelation,名,新発見，暴露
+934,announcement,名,発表
+935,a radio station,参,ラジオ局
+935,a TV station,参,テレビ局
+936,proof,名,証明
+936,waterproof,参,防水の
+937,advertisement,名,（1つの）広告
+937,advertising,名,広告（すること）
+937,hype,参,誇大広告
+937,propaganda,参,（政治的）宣伝，プロパガンダ
+938,clarification,名,解明
+939,job seeker,参,求職者
+940,entertainer,名,エンターテイナー，楽しませる人
+940,entertainment,名,娯楽，歓待
+941,amusement,名,楽しみ，娯楽
+941,amusing,形,（人にとって）愉快な
+942,attraction,名,魅力，引きつけるもの
+942,attractive,形,魅力的な
+943,fascinating,形,魅力的な
+943,fascination,名,魅了
+944,absorption,名,吸収，熱中
+945,fondly,副,哀れしく
+946,scared,参,案山子（←カラスを怯えさせる物）
+946,scary,形,（人が）怖がって
+947,a car alarm,参,自動車の盗難警報装置
+947,a fire alarm,参,火災報知器
+947,alarming,形,驚くべき
+947,an alarm (clock),,
+948,amazed,形,びっくりした
+948,amazing,形,びっくりさせるような
+948,maze,参,迷路
+949,irritating,,
+949,irritation,,
+950,upsetting,形,（人を）動揺させる，悩ませる
+951,puzzling,形,当惑させるような
+952,confused,形,混乱［困惑］した
+952,confusing,名,混乱
+952,confusion,形,混乱［困惑］させる
+953,a wild boar,参,イノシシ
+953,boredom,形,うんざりして，退屈して（←退屈させられた）
+954,frustrated,形,欲求不満を抱いた
+954,frustrating,形,欲求不満［挫折感］を抱かせるような
+954,frustration,名,欲求不満，挫折
+955,disappointing,形,失望した
+955,disappointment,形,失望させる（ような）
+956,embarrassing,形,恥ずかしい思いをした，当惑した
+956,embarrassment,形,（人を）当惑させるような，みっともない
+958,unease,名,不安，心配
+959,hesitant,形,ためらって
+959,hesitation,名,ためらい
+960,be happy to do,反,喜んで〜する
+960,be ready to do,名,したがらないこと
+960,reluctance,副,いやいや
+960,reluctantly,副,いやいや
+962,boasting,名,自慢
+963,jealousy,名,嫉妬
+964,envious,形,羨んで
+966,look up to ~,形,（人，態度などが）ちゃんとした
+966,respectable,形,それぞれの，各々の
+966,respectful,形,敬意をもっている
+966,respective,形,それぞれの，各々の
+968,emoticon,名,（コンピュータ）絵文字
+968,emotional,形,感情的な，感動的な
+969,antipathy,反,反感（anti-「逆」）
+969,apathy,反,無関心（a-「否定」）
+969,sympathetic (to ~ ),形,（〜に）同情［共感］している
+969,sympathize (with (人)),自,（（人）に）同情する，共感する
+970,ashamed,形,恥じる
+970,shameful,形,恥ずかしい
+971,confident,形,機密の（←信頼に基づく）
+971,confidential,形,自信がある
+971,self-confidence,名,自信
+972,courageous,形,（精神的強さを示して）勇敢な
+973,compassion,参,（苦しみに耐えようとする）同情（com-「共に」＋-passion「情熱」）
+973,passionate,形,情熱的な
+974,sorrowful,形,悲しみに満ちた
+975,pay attention to ~,,
+976,offender,名,罪，立腹
+976,offense,名,犯罪者
+976,offensive,形,不快な
+977,depressed,形,憂うつな
+977,depression,名,（鬱）うつ，大不況
+978,owing to ~,,
+979,fearful,形,恐ろしい，恐れて
+980,methodical,形,きちんとした，秩序だった
+980,methodological,形,方法論上の
+980,methodology,名,方法論
+984,extreme,形,極度の，極端な
+985,totalitarian,形/名,全体主義の／全体主義者
+985,totally,副,完全に，まったく
+986,partly,形,大きい，多い
+987,excessive,形/動,適度な／（公正な立場で）〜の進行役をする
+987,moderator,名,司会者（←争いを適度にする人）
+989,obvious,反,明白な
+989,subtly,副,微妙に
+992,necessary,他,〜を必要とする
+992,necessitate,形,必要な
+992,necessity,名,必要性
+994,ironic,形,皮肉な
+994,irony,名,皮肉
+995,over and over,,
+998,worthless,形,価値のない
+998,worthwhile,形,やりがいがある
+998,worthy,形,価値がある
+999,accord,名,一致
+999,accordingly,副,したがって，それに応じて
+1000,(even) though S V,,
+1000,although S V,,
+1001,opponent,,
+1001,proponent,,
+1001,proposal,,
+1002,dismissal,,
+1003,blessed,,
+1003,blessing,,
+1004,glorious,,
+1004,morning glory,,
+1005,complement,,
+1005,complimentary,,
+1005,flattery,,
+1006,banquet,,
+1007,declaration,,
+1008,eraser,,
+1008,glue,,
+1008,highlighter,,
+1008,ruler,,
+1008,stapler,,
+1008,white-out,,
+1009,implication,,
+1010,recital,,
+1011,ultraviolet rays,,
+1012,radioactive,,
+1015,atom,,
+1015,electron,,
+1015,molecular,,
+1017,tissue paper,,
+1019,gene therapy,,
+1019,genesis,,
+1019,genetic,,
+1021,consolidate,,
+1021,hollow,,
+1021,liquid,,
+1022,satellite imagery,,
+1023,axis,,
+1023,exorbitant,,
+1023,trajectory,,
+1025,attempted,,
+1026,the capacity of this tank,,
+1027,capability,,
+1027,incapable,,
+1028,attainment,,
+1030,dedicated,,
+1030,dedication,,
+1031,painful,,
+1031,painfully,,
+1031,painkiller,,
+1034,pharmaceutical,,
+1034,pharmacist,,
+1035,internist,,
+1035,surgeon,,
+1036,PTSD,,
+1037,midwife,,
+1037,pregnancy,,
+1038,clinic,,
+1038,practitioner,,
+1039,healer,,
+1039,healing,,
+1040,contagion,,
+1040,infection,,
+1040,infectious,,
+1041,anklet,,
+1041,wrist,,
+1042,big toe,,
+1042,forefinger,,
+1042,palm,,
+1042,toe,,
+1043,pimple,,
+1044,(Keep your) chin up!,,
+1044,jaw,,
+1044,rub one's chin,,
+1045,chestnut,,
+1046,breast-feed,,
+1047,pneumonia,,
+1048,internal organs,,
+1048,organic,,
+1048,organism,,
+1049,visible,,
+1049,visual,,
+1050,rib,,
+1051,sensational,,
+1052,a building code,,
+1052,a genetic code,,
+1052,a zip code,,
+1052,break a code,,
+1052,crack a code,,
+1052,decode,,
+1054,liberal,,
+1054,liberate,,
+1054,liberation,,
+1056,humanist,,
+1058,authorization,,
+1058,authorize,,
+1058,unauthorized,,
+1059,injustice,,
+1059,justification,,
+1059,justify,,
+1060,a premium,,
+1060,an insurance policy,,
+1060,an insurance premium,,
+1060,insure,,
+1062,impoverish,,
+1063,chaotic,,
+1063,cosmos,,
+1064,isolate,,
+1065,regional,,
+1066,testimony,,
+1067,be covered by warranty,,
+1067,out-of-warranty repairs,,
+1069,original,,
+1069,originally,,
+1069,originate,,
+1071,missionary,,
+1073,monumental,,
+1074,revolutionary,,
+1074,revolve,,
+1075,contraction,,
+1075,subcontract,,
+1077,negotiable,,
+1077,negotiation,,
+1078,a cooperative society,,
+1078,cooperation,,
+1078,cooperative,,
+1079,restoration,,
+1080,foundation,,
+1080,founder,,
+1081,conserve,,
+1081,progressive,,
+1082,world affairs,,
+1084,the U.N. Security Council,,
+1085,kin,,
+1086,republican,,
+1087,imperative,,
+1087,imperial,,
+1088,with the aid of ~,,
+1090,ministry,,
+1091,Congress,,
+1091,the Diet,,
+1092,extraterrestrial,,
+1092,territorial,,
+1094,fortunate,,
+1094,fortunately,,
+1094,fortune-teller,,
+1094,misfortune,,
+1094,unfortunately,,
+1096,fund-raising,,
+1096,refund,,
+1096,reimburse,,
+1097,stockholder,,
+1098,laborious,,
+1100,affirm,,
+1100,firmly,,
+1101,reunion,,
+1104,compiler,,
+1104,edit,,
+1104,edition,,
+1104,editorial,,
+1105,clientele,,
+1106,recruiter,,
+1108,elementary,,
+1109,constitution,,
+1109,constitutionally,,
+1110,unified,,
+1111,combination,,
+1112,united,,
+1113,linkage,,
+1114,irrelevant,,
+1115,assassinate,,
+1115,murderer,,
+1117,imprison,,
+1117,inmate,,
+1117,prisoner,,
+1118,vice versa,,
+1118,vicious,,
+1118,virtue,,
+1121,a bamboo sword,,
+1121,a[the] sword of Damocles,,
+1121,ax,,
+1121,blade,,
+1121,plough,,
+1121,plow,,
+1124,air force,,
+1124,army,,
+1124,navy,,
+1125,marketing strategy,,
+1125,strategic,,
+1126,conquest,,
+1127,attack,,
+1127,defendant,,
+1127,defense,,
+1127,offend,,
+1127,offense,,
+1128,dominant,,
+1128,domination,,
+1128,predominantly,,
+1129,robbery,,
+1129,thief,,
+1130,deprived,,
+1131,devastating,,
+1132,crush,,
+1133,a hazard map,,
+1133,biohazard,,
+1133,haphazard,,
+1133,hazardous,,
+1134,rubbish,,
+1134,rubble,,
+1134,wreckage,,
+1135,orphanage,,
+1136,slavery,,
+1136,whip,,
+1137,be acquainted (with ~),,
+1138,merchandise,,
+1139,reside,,
+1139,residence,,
+1139,residential,,
+1142,proceeds,,
+1142,process,,
+1143,fade away,,
+1143,fade-out,,
+1146,a chopping board,,
+1146,stove,,
+1148,transformation,,
+1149,makeshift,,
+1150,modification,,
+1150,modifier,,
+1151,revision,,
+1152,an AI-enhanced society,,
+1153,better,,
+1154,cruise,,
+1159,resolution,,
+1160,settle for ~,,
+1160,settlement,,
+1161,enriched,,
+1162,warning,,
+1163,Japan Self-Defense Forces,,
+1163,workforce,,
+1164,appealing,,
+1164,sell oneself,,
+1165,applaud,,
+1165,boo,,
+1166,leap year,,
+1166,reap,,
+1168,seizure,,
+1169,newscaster,,
+1169,outcast,,
+1171,illumination,,
+1174,reaction,,
+1175,durable,,
+1175,endurance,,
+1176,be bound up with ~,,
+1176,binding,,
+1181,incorporation,,
+1185,generation,,
+1185,generator,,
+1186,possession,,
+1187,retention,,
+1188,security,,
+1189,captive,,
+1191,investigation,,
+1191,investigator,,
+1192,detective,,
+1193,for further inquiries,,
+1194,specialization,,
+1194,What is today's special?,,
+1196,antibiotics,,
+1196,biomimicry,,
+1196,microbiology,,
+1197,an eco-friendly bag,,
+1197,ecological,,
+1197,ecologist,,
+1198,philosopher,,
+1199,geological,,
+1199,geologist,,
+1199,geology,,
+1200,institute,,
+1204,conceive,,
+1204,conception,,
+1205,meditate (on ~),,
+1207,precaution,,
+1208,at will,,
+1208,goodwill,,
+1209,opt,,
+1209,optional,,
+1211,charity,,
+1212,intention,,
+1212,intentionally,,
+1213,suspicion,,
+1213,suspicious,,
+1214,identification,,
+1214,identity,,
+1214,unidentified,,
+1215,permission,,
+1215,weather permitting,,
+1216,acknowledgement,,
+1217,perception,,
+1217,perceptive,,
+1218,appreciate,,
+1218,evaluation,,
+1219,cultivated,,
+1219,cultivation,,
+1220,a shade,,
+1221,draft,,
+1221,gust,,
+1222,deserted,,
+1222,desertification,,
+1222,dessert,,
+1222,the Kansas Plains,,
+1222,the Suez Canal,,
+1223,a dense fog,,
+1223,foggy,,
+1224,fresh and youthful skin,,
+1224,moist,,
+1225,dampen,,
+1226,highway,,
+1226,street,,
+1227,a vapor trail,,
+1227,trailer,,
+1228,streaming,,
+1228,streamline,,
+1230,the Great Barrier Reef,,
+1232,crater,,
+1232,lava,,
+1232,volcanic,,
+1233,minefield,,
+1233,miner,,
+1233,mineral,,
+1233,urban mine,,
+1235,website,,
+1236,bee,,
+1236,beetle,,
+1236,cockroach,,
+1236,cricket,,
+1236,dragonfly,,
+1236,firefly,,
+1236,fly,,
+1236,grasshopper,,
+1236,moth,,
+1236,spider,,
+1237,bull,,
+1237,cow,,
+1237,ox,,
+1238,calf,,
+1238,child,,
+1238,lamb,,
+1238,puppy,,
+1243,herd,,
+1243,pack,,
+1243,swarm,,
+1244,artery,,
+1244,the main vein,,
+1247,quiet,,
+1248,earnestly,,
+1249,diligently,,
+1249,lazy,,
+1251,primary,,
+1252,definitely,,
+1252,indefinite,,
+1253,evidently,,
+1254,prominence,,
+1254,prominently,,
+1255,markedly,,
+1256,disgrace,,
+1257,charming,,
+1257,enchant,,
+1258,fantasy,,
+1259,irrational,,
+1259,rationale,,
+1260,magnify,,
+1261,be inferior (in A) to ~,,
+1261,superiority over ~,,
+1261,superiority to ~,,
+1262,loyalty,,
+1262,royal,,
+1263,horror,,
+1264,misery,,
+1265,sharp,,
+1266,make a nasty remark,,
+1267,lunatic,,
+1267,sane,,
+1268,ridicule,,
+1269,rot,,
+1272,keep ~ in order,,
+1272,messy,,
+1273,the vast majority of ~,,
+1274,gigantic,,
+1275,huge,,
+1276,Anglosphere,,
+1279,external,,
+1280,mobility,,
+1281,gentle,,
+1282,intensify,,
+1282,intensity,,
+1282,intensive,,
+1283,evitable,,
+1283,inevitably,,
+1284,neutrality,,
+1285,briefcase,,
+1286,barefoot,,
+1287,mutually,,
+1287,reciprocal,,
+1288,potentially,,
+1290,convention,,
+1290,conventional wisdom,,
+1290,innovative,,
+1290,unconventional,,
+1291,supremacy,,
+1292,resemblance,,
+1293,contraband,,
+1294,categorize,,
+1297,peculiarity,,
+1298,deficient,,
+1298,insufficient,,
+1298,suffice,,
+1301,a modular bathroom,,
+1302,circumference,,
+1303,mental arithmetic,,
+1304,a large quantity of,,
+1304,a small quantity of,,
+1304,quality,,
+1304,quantitative,,
+1305,deficit,,
+1305,sufficiency,,
+1305,surplus,,
+1306,maximize,,
+1306,minimum,,
+1307,bind,,
+1309,the era name,,
+1312,annually,,
+1313,eternity,,
+1314,initialize,,
+1314,initially,,
+1314,initiate,,
+1315,posterior,,
+1315,priority,,
+1316,sequence,,
+1316,subsequently,,
+1318,routinely,,
+1320,bricklayer,,
+1321,polar,,
+1321,polarize,,
+1322,mischievous,,
+1323,superstitious,,
+1324,store,,
+1324,storeroom,,
+1326,attire,,
+1328,coalition,,
+1329,incidence,,
+1329,incidental,,
+1329,incidentally,,
+1330,things,,
+1330,under no circumstances,,
+1331,far-fetched,,
+1332,distribution,,
+1334,a life-sized statue,,
+1334,the Statue of Liberty,,
+1335,painting,,
+1335,woodblock print,,
+1337,an arts and crafts room,,
+1337,craftsmanship,,
+1337,craftspeople,,
+1337,handicraft,,
+1338,journalism,,
+1338,journalist,,
+1339,entry,,
+1339,Wikipedia,,
+1340,Heaven knows!,,
+1340,heavenly,,
+1340,hell,,
+1340,Lord knows!,,
+1341,corpse,,
+1342,spirit,,
+1343,monk,,
+1343,preach,,
+1344,faithful,,
+1344,the Buddhist faith,,
+1347,mosque,,
+1348,contextual,,
+1349,married,,
+1349,plural,,
+1349,single,,
+1349,single-sex,,
+1349,singularity,,
+1350,commander,,
+1351,instant,,
+1351,instantly,,
+1353,a phrase in common usage,,
+1354,consonant,,
+1355,adjective,,
+1355,adverb,,
+1355,auxiliary,,
+1355,conjunction,,
+1355,noun,,
+1355,preposition,,
+1355,verb,,
+1356,dialect,,
+1357,underline,,
+1359,ambitious,,
+1360,short-tempered,,
+1360,temperament,,
+1361,affectionate,,
+1361,affective,,
+1362,enthusiastic (about ~),,
+1363,outraged,,
+1364,incredibly,,
+1366,daring,,
+1366,How dare S V?,,
+1366,I dare say.,,
+1367,skyscraper,,
+1368,soothing,,
+1369,temptation,,
+1369,tempting,,
+1370,scolding,,
+1371,oppression,,
+1371,oppressive,,
+1372,a threatening letter,,
+1372,threat (to ~),,
+1373,mourning,,
+1374,a sacrifice fly,,
+1374,sacrifice A at the altar of B,,
+1375,cursed,,
+1378,consecutive,,
+1378,consequently,,
+1378,sequence,,
+1381,equation,,
+1381,formulate,,
+1384,absolutely,,
+1385,overwhelm,,
+1386,not altogether,,
+1387,entirely,,
+1387,entity,,
+1390,impartial,,
+1390,partially,,
+1392,almost,,
+1392,approximate,,
+1392,approximation,,
+1393,frequency,,
+1393,frequent,,
+1394,apparent,,
+1395,mere,,
+1396,nonetheless,,
+1398,hence,,
+1398,thus far,,
+1399,backward,,
+1401,assertive,,
+1402,defiant,,
+1402,defy the odds,,
+1405,illustration,,
+1406,refutable,,
+1412,evolve,,
+1414,probation,,
+1415,solid,,
+1417,gravitational,,
+1421,poisonous,,
+1422,acidification,,
+1422,alkali,,
+1423,dioxin,,
+1423,nontoxic,,
+1426,manufacturer,,
+1429,assembly,,
+1429,disassemble,,
+1431,bill,,
+1431,change,,
+1431,coinage,,
+1431,note,,
+1432,chemotherapy,,
+1432,therapist,,
+1433,vaccination against the flu,,
+1434,overdose,,
+1435,sanitary,,
+1436,parasite,,
+1439,agonize,,
+1441,mental fatigue,,
+1441,physical fatigue,,
+1442,diagnose,,
+1443,immortal,,
+1443,immortality,,
+1443,mortal,,
+1444,a nursing home,,
+1444,nursery,,
+1445,acute,,
+1446,immunity,,
+1446,the immune system,,
+1447,early,,
+1447,terminate,,
+1448,get a sound sleep,,
+1449,respirator,,
+1450,suffocate,,
+1451,anesthesia,,
+1451,paralysis,,
+1452,prescription,,
+1453,digestion,,
+1455,malnutrition,,
+1455,nourishing,,
+1455,nourishment,,
+1455,nutrition,,
+1456,pale,,
+1457,in the flesh,,
+1459,erection,,
+1460,spine,,
+1460,vertebra,,
+1461,suck ~ in,,
+1461,suck ~ up,,
+1463,compensation,,
+1463,offset,,
+1465,biased,,
+1466,prestigious,,
+1467,privileged,,
+1467,underprivileged,,
+1468,feasible,,
+1469,dignified,,
+1469,indignant,,
+1470,vice,,
+1471,aristocrat,,
+1472,rebellion,,
+1472,rebellious,,
+1473,in the scheme of things,,
+1474,conventional,,
+1475,a press conference,,
+1477,initiate,,
+1478,prefecture,,
+1478,provincial,,
+1479,colonize,,
+1481,a peace treaty,,
+1481,ratify a treaty,,
+1483,benefits,,
+1483,pensioner,,
+1486,oblige,,
+1486,obliged,,
+1489,abnormal,,
+1489,normal,,
+1490,copyright,,
+1490,royalty,,
+1491,advanced,,
+1491,modern,,
+1493,anonymously,,
+1493,pseudonym,,
+1494,metropolis,,
+1495,eligible,,
+1495,entitlement,,
+1496,demography,,
+1497,donation,,
+1497,donor,,
+1499,conformist,,
+1499,conformity,,
+1500,compliance,,
+1501,legislate,,
+1501,legislative,,
+1502,testify,,
+1502,testimonial,,
+1503,verdict,,
+1504,illegitimate,,
+1505,enforcement,,
+1506,come to power,,
+1507,bureau,,
+1507,bureaucrat,,
+1507,bureaucratic,,
+1508,bribe,,
+1508,corrupt,,
+1509,tyrant,,
+1512,Representative,,
+1512,the House of Representatives,,
+1512,the Senate,,
+1513,the U.S. Embassy,,
+1514,diplomacy,,
+1514,diplomatic,,
+1515,refuge,,
+1516,a coalition government,,
+1516,alliance,,
+1517,sovereign,,
+1520,a municipal hospital,,
+1520,a municipal worker,,
+1520,governor,,
+1520,mayor,,
+1523,expenditure,,
+1524,surplus,,
+1525,commercial,,
+1525,e-commerce,,
+1526,input,,
+1529,bankruptcy,,
+1531,BBC,,
+1531,corporate,,
+1531,incorporate,,
+1532,enterprising,,
+1533,start-up,,
+1534,branch,,
+1535,personal,,
+1535,personality,,
+1537,successor,,
+1540,acquisition,,
+1540,merger,,
+1543,frame,,
+1545,-dimensional,,
+1545,of great dimensions,,
+1546,marginal,,
+1547,excellence,,
+1547,excellent,,
+1548,contradiction,,
+1548,contradictory,,
+1550,conversation,,
+1550,conversely,,
+1551,equality,,
+1551,redress inequalities,,
+1551,unequal,,
+1555,correspondence,,
+1555,correspondent,,
+1556,a random number table,,
+1556,at random,,
+1557,soldier,,
+1561,torment,,
+1566,contentious,,
+1570,hostility,,
+1571,wrecked,,
+1572,tax,,
+1573,disruption,,
+1573,disruptive behavior,,
+1574,interference,,
+1575,confrontation,,
+1576,explosion,,
+1576,explosive,,
+1577,collision,,
+1578,cousin,,
+1578,nepotism,,
+1578,niece,,
+1579,infancy,,
+1579,toddler,,
+1580,partner,,
+1582,folkcraft,,
+1582,folklore,,
+1582,folktale,,
+1584,receive,,
+1585,navigation,,
+1591,alteration,,
+1593,catch up with ~,,
+1597,ascend,,
+1597,descendant,,
+1597,descent,,
+1598,acceleration,,
+1599,fluctuation,,
+1599,stable,,
+1600,distortion,,
+1601,crack down on ~,,
+1602,transient,,
+1602,transit,,
+1603,game,,
+1604,reinforcement,,
+1607,relapse,,
+1609,impairment,,
+1611,barely cope,,
+1613,abandoned houses,,
+1613,demolition,,
+1614,confinement,,
+1615,designation,,
+1616,irregular,,
+1616,regular,,
+1616,regulation,,
+1618,prohibition,,
+1620,constrain,,
+1621,stimulant,,
+1621,stimulation,,
+1623,spurt,,
+1624,urgent,,
+1625,compelling,,
+1625,compulsion,,
+1626,blurred,,
+1627,diversion,,
+1628,reversal,,
+1628,reversible,,
+1631,jeopardy,,
+1634,induction,,
+1635,betrayal,,
+1636,bullying,,
+1636,cyberbullying,,
+1639,rubber,,
+1641,insertion,,
+1642,attach (A to B),,
+1643,withdrawal,,
+1644,edit,,
+1646,manipulation,,
+1648,execution,,
+1648,executive,,
+1651,charge,,
+1651,sewage,,
+1652,drainpipe,,
+1653,-soaked,,
+1653,soaked,,
+1655,suspension,,
+1657,tap (人) on the ~,,
+1660,intervention,,
+1661,impenetrable,,
+1661,penetration,,
+1663,utility,,
+1663,utilization,,
+1666,coordination,,
+1667,before you could blink,,
+1667,in a blink of an eye,,
+1668,spin-off,,
+1669,rotation,,
+1674,cease-fire,,
+1674,cessation,,
+1674,incessant,,
+1675,hasten,,
+1675,hasty,,
+1675,in haste,,
+1677,disguised,,
+1678,deceit,,
+1678,deception,,
+1678,deceptively,,
+1679,negligible,,
+1680,evacuation,,
+1681,coincidence,,
+1682,prevailing,,
+1682,prevalent,,
+1683,sustainable,,
+1684,lingering,,
+1685,revival,,
+1686,resumption,,
+1688,inspection,,
+1690,enrollment,,
+1691,interdisciplinary,,
+1691,self-discipline,,
+1692,lecture (on ~),,
+1693,ethical,,
+1693,ethics,,
+1694,psychological,,
+1694,psychologist,,
+1695,astrology,,
+1695,astronaut,,
+1695,astronomer,,
+1696,archaeology,,
+1696,archaic,,
+1697,doctoral thesis,,
+1697,master's thesis,,
+1698,a boarding school,,
+1698,curfew,,
+1700,anticipation,,
+1701,foreseeable,,
+1702,inference,,
+1702,reason,,
+1703,deduction,,
+1703,deductive,,
+1706,assurance,,
+1706,reassure,,
+1707,assessment,,
+1708,concession,,
+1710,comprehensible,,
+1710,comprehension,,
+1710,comprehensive,,
+1711,reconciliation,,
+1714,"Cogito, ergo sum.",,
+1715,by intuition,,
+1717,daydream,,
+1718,stereotyped,,
+1719,mistakenly believe that S V,,
+1720,the criteria by which to judge ~,,
+1721,ideological,,
+1722,intolerable,,
+1722,tolerable,,
+1722,tolerance,,
+1722,tolerant,,
+1724,conception,,
+1724,contraception,,
+1725,misunderstanding,,
+1727,objective,,
+1727,subject,,
+1728,compulsion,,
+1728,mandatory,,
+1729,relief,,
+1731,disposable,,
+1731,dispose (of ~),,
+1732,fragrance,,
+1733,granary,,
+1733,take ~ with a grain of salt,,
+1734,barley,,
+1734,buckwheat,,
+1734,oat,,
+1734,rye,,
+1735,desertification,,
+1736,famine,,
+1737,irrigate,,
+1738,spectacular,,
+1739,a depth of ~ meters,,
+1739,alpine plants,,
+1739,latitude,,
+1739,longitude,,
+1740,catastrophic,,
+1740,catastrophically,,
+1742,rot,,
+1742,rotten,,
+1743,erode,,
+1744,flamboyant,,
+1744,flammable,,
+1745,asteroid,,
+1745,comet,,
+1745,constellation,,
+1746,chilly,,
+1747,geothermal,,
+1747,thermometer,,
+1748,barren,,
+1748,fertilizer,,
+1750,exploitation,,
+1751,contamination,,
+1751,decontaminate,,
+1752,eruption,,
+1753,uproar,,
+1754,inhabitant,,
+1756,crow,,
+1756,eagle,,
+1756,goose,,
+1756,hawk,,
+1756,ostrich,,
+1756,sparrow,,
+1756,turkey,,
+1757,instinctive,,
+1757,instinctively,,
+1757,reason,,
+1759,anatomical,,
+1760,amphibian,,
+1760,reptile,,
+1761,apex predator,,
+1761,predatory,,
+1764,log,,
+1766,fiber,,
+1767,windmill,,
+1768,interweave,,
+1768,web,,
+1770,optimal,,
+1770,optimism,,
+1770,optimist,,
+1770,pessimistic,,
+1771,expat(riate),,
+1771,patriot,,
+1771,patriotism,,
+1772,aristocracy,,
+1773,haughty,,
+1774,arrogance,,
+1775,invigorate,,
+1775,vigor,,
+1778,court,,
+1778,courteous,,
+1779,resilience,,
+1780,inclination,,
+1781,a Ferris wheel,,
+1781,a roller coaster,,
+1781,haunted,,
+1783,indulgence,,
+1784,flawed,,
+1784,flawless,,
+1785,defective,,
+1788,the Paralympics,,
+1790,a crucial moment,,
+1791,from (the) cradle to (the) grave,,
+1792,primarily,,
+1792,prime,,
+1793,revitalize,,
+1794,integrate,,
+1794,integrity,,
+1800,plain,,
+1801,mislead,,
+1802,obscurity,,
+1803,immature,,
+1803,maturity,,
+1803,premature,,
+1804,neatly,,
+1805,decency,,
+1805,decently,,
+1806,complicated,,
+1807,primitive,,
+1809,promptly,,
+1810,swiftly,,
+1811,almighty,,
+1812,implicit,,
+1813,automatic,,
+1814,wisdom,,
+1814,witty,,
+1815,thriving,,
+1816,bright,,
+1816,dim-witted,,
+1817,gloom,,
+1818,fertile,,
+1819,a pop idol,,
+1819,busy,,
+1820,adversity,,
+1824,brand-new,,
+1824,scab,,
+1824,scabby,,
+1829,dynamic,,
+1830,acquired,,
+1832,wild,,
+1833,manifestation,,
+1833,manifesto,,
+1834,densely,,
+1834,density,,
+1837,coherence,,
+1838,outer space,,
+1838,universe,,
+1840,spontaneously,,
+1842,collective bargaining,,
+1842,collectively,,
+1842,individual,,
+1843,horizontal,,
+1844,upcoming,,
+1845,tough,,
+1847,with ease,,
+1848,rusty,,
+1850,ragged,,
+1850,rug,,
+1853,mandate,,
+1855,irrespective of ~,,
+1855,respectively,,
+1856,multiple,,
+1856,multiplication,,
+1856,multitude,,
+1857,soaring,,
+1859,accumulation,,
+1861,abound,,
+1862,amplifier,,
+1863,net,,
+1864,infinitive,,
+1864,infinity,,
+1865,solely,,
+1865,solitary,,
+1868,simultaneously,,
+1870,a false dawn,,
+1870,dusk,,
+1872,adolescence,,
+1872,puberty,,
+1873,billion,,
+1873,century,,
+1873,trillion,,
+1874,expiration,,
+1874,expired,,
+1874,valid,,
+1876,period,,
+1876,periodical,,
+1877,a wide array of ~,,
+1878,reign,,
+1881,spectrometer,,
+1882,equipment,,
+1883,transmission,,
+1884,endowment,,
+1885,inherent,,
+1885,inheritance,,
+1888,bondage,,
+1889,be hospitalized,,
+1889,hospitable,,
+1890,certified,,
+1891,flyer,,
+1891,leaflet,,
+1893,accommodate,,
+1895,a concert venue,,
+1897,pave,,
+1898,a pedestrian mall,,
+1898,crosswalk,,
+1900,ship,,
+1900,shipment,,
+1901,line,,
+1901,needle,,
+1901,string,,
+1902,ornamental,,
+1903,cosmetics,,
+1906,dweller,,
+1906,dwelling,,
+1909,excretion,,
+1910,following,,
+1910,precedent,,
+1910,preceding,,
+1910,unprecedented,,
+1911,phase ~ out,,
+1912,a priority seat,,
+1912,prior,,
+1914,bomb,,
+1914,comb,,
+1914,womb,,
+1915,legendary,,
+1917,baptism,,
+1917,rite,,
+1919,dogma,,
+1923,confession,,
+1924,carving,,
+1924,curve,,
+1926,non-verbal,,
+1927,a written exam,,
+1927,an oral exam,,
+1928,eloquently,,
+1929,a lingua franca,,
+1929,bilingual,,
+1929,linguistics,,
+1930,simile,,
+1931,poetry,,
+1931,style,,
+1931,verse,,
+1932,narrate,,
+1932,narration,,
+1936,paradoxical,,
+1937,A is slang for B.,,
+1937,terminology,,
+1938,try to solve a riddle,,
+1939,exhibition,,
+1940,portrait,,
+1940,profile,,
+1941,depiction,,
+1943,bully,,
+1944,delighted,,
+1944,delightful,,
+1945,astonishing,,
+1945,astonishment,,
+1945,lightning,,
+1945,thunder,,
+1946,dreadful,,
+1946,look forward to ~,,
+1947,attribution,,
+1948,consolation,,
+1949,raise,,
+1950,distraction,,
+1952,thrilled,,
+1952,thrilling,,
+1953,humiliating,,
+1953,humiliation,,
+1955,utterance,,
+1955,utterly,,
+1956,exclamation,,
+1957,bloodshed,,
+1957,watershed,,
+1958,resentful,,
+1958,resentment,,
+1959,plea,,
+1959,please,,
+1960,yearning,,
+1961,longing,,
+1961,prolong,,
+1962,immersion,,
+1965,willingly,,
+1965,willingness (to do),,
+1966,fury,,
+1966,infuriate,,
+1967,intimacy,,
+1968,aesthetically,,
+1968,aesthetics,,
+1969,conscientious,,
+1970,at the mercy of ~,,
+1970,merciful,,
+1972,impulsive,,
+1972,make an impulse buy,,
+1972,make an impulse purchase,,
+1973,aspire,,
+1974,grieve,,
+1975,show contempt,,
+1978,resurgence,,
+1981,a decisive factor,,
+1981,social factors,,
+1982,liability,,
+1983,thoroughbred,,
+1983,thoroughly,,
+1984,inadequate,,
+1986,ultimately,,
+1987,fake,,
+1988,do not have the slightest idea,,
+1991,impotent,,
+1991,omnipotent,,
+1993,virtual,,
+1995,deliberate,,
+1996,exclude,,
+1998,name,,
+1999,allege,,
+2003,circular,,
+2003,circulation,,
+2004,wax,,
+2005,deterioration,,
+2006,plumber,,
+2007,backlash,,
+2008,cram school,,
+2009,speculation,,
+2010,evaporation,,
+2010,vapor,,
+2011,retch,,
+2016,collaboration,,
+2016,collaborative,,
+2017,time lag,,
+2018,catering,,
+2022,a tell-all book,,
+2022,disclosure,,
+2023,impromptu,,
+2023,improvisation,,
+2024,xenotransplant,,
+2032,compliment,,
+2032,flattery,,
+2034,ratify,,
+2035,kid,,
+2035,kidnapper,,
+2036,poach,,
+2036,smuggling,,
+2037,conviction,,
+2037,ex-convict,,
+2038,hindrance,,
+2041,eradication,,
+2042,exile,,
+2042,expulsion,,
+2043,omission,,
+2046,restraint,,
+2051,dictation,,
+2051,dictator,,
+2052,provoking,,
+2053,refined,,
+2053,refinement,,
+2054,enlightened,,
+2054,enlightenment,,
+2056,life-prolonging device,,
+2056,shorten,,
+2060,exertion,,
+2062,thruster,,
+2063,stab,,
+2065,excavation,,
+2066,evasion,,
+2067,embodiment,,
+2068,assimilation,,
+2070,scrutiny,,
+2072,a mentoring program,,
+2075,presumption,,
+2077,verdict,,
+2077,verification,,
+2080,lamentable,,
+2081,perplexing,,
+2082,disgusting,,
+2083,evocation,,
+2084,port,,
+2085,frictional,,
+2087,hereditary,,
+2088,synthesize,,
+2088,synthetic,,
+2089,veteran,,
+2091,fat,,
+2091,obese,,
+2092,neurochemical,,
+2092,neurology,,
+2092,neuroscience,,
+2096,nutrition,,
+2097,a spin dryer,,
+2098,abort,,
+2100,psychiatrist,,
+2101,cardioid,,
+2101,cardiology,,
+2101,cardiovascular,,
+2102,brain,,
+2102,heart,,
+2102,intestine,,
+2102,liver,,
+2102,lung,,
+2102,stomach,,
+2105,feast-or-famine,,
+2106,riot police,,
+2109,county,,
+2109,ward,,
+2110,hierarchical,,
+2111,autonomous,,
+2112,delegate,,
+2113,congressman,,
+2113,senate,,
+2115,monarch butterfly,,
+2115,monarchical,,
+2115,subject,,
+2116,monopolize,,
+2118,expert (on ~),,
+2120,boss,,
+2120,superior,,
+2121,barn,,
+2122,farmer,,
+2123,correlate,,
+2123,correlative,,
+2124,asymmetric,,
+2124,symmetry,,
+2128,persecute,,
+2131,bribery,,
+2133,ransom,,
+2134,conspire,,
+2135,imperil,,
+2135,perilous,,
+2138,uproot,,
+2139,commence,,
+2143,deter,,
+2145,Anthropocene,,
+2146,intern,,
+2148,altruist,,
+2148,altruistic,,
+2148,egoism,,
+2149,-phile,,
+2149,acrophobia,,
+2149,xenophobia,,
+2151,the equator,,
+2153,hay,,
+2153,hay fever,,
+2153,mow,,
+2153,pasture,,
+2156,meteorology,,
+2156,the Milky Way,,
+2157,asteroid belt,,
+2159,glacial,,
+2163,a cluster bomb,,
+2166,herbivore,,
+2166,omnivore,,
+2167,invertebrate,,
+2167,vertebra,,
+2169,host,,
+2170,the adrenal cortex,,
+2172,introvert,,
+2173,stigmatize O as C,,
+2176,infallible,,
+2178,traffic congestion,,
+2181,bulky,,
+2183,shortcut,,
+2184,drain,,
+2184,sewer,,
+2188,soft drink,,
+2193,rhetorical,,
+2199,pilgrimage,,
+2201,artefact,,
+2203,(right) on cue,,
+2207,empathize (with ~),,
+2209,a distress signal,,
+2211,scornful,,
+2213,sentimental,,
+2218,revoke,,
+2218,vocalist,,
+2221,physiology,,
+2222,multilateral,,
+2224,imperative,,
+2225,a complementary color,,
+2225,complement,,
+2228,precede,,
+2228,precedent,,
+2232,pervade,,
+2233,exponential function,,
+2233,exponentially,,
+2235,a male-oriented society,,
+2235,orientation,,
+2235,the Orient,,
+2237,maternity,,
+2237,paternal,,
+2238,feminine,,
+2238,masculinity,,
+2239,rejuvenation,,
+2240,comprehensible,,
+2240,unintelligible,,
+2242,a lost child,,
+2243,active,,
+2245,inedible,,
+2246,perish,,
+2246,perishables,,
+2248,zeal,,
+2249,intimidate,,
+2249,timidly,,
+2251,drunken,,
+2251,sobering,,
+2253,solitude,,
+2254,refined,,
+2257,obsession,,
+2257,obsessive,,
+2258,preoccupation,,
+2259,propensity,,
+2260,aptitude,,
+2261,empirically,,
+2263,pivot,,
+2265,splendor,,
+2267,genius,,
+2267,ingenuity,,
+2270,eminence,,
+2273,proficiency,,
+2275,unanimously,,
+2276,careful,,
+2277,futility,,
+2278,brute,,
+2279,auspicious,,
+2279,omen,,
+2281,wretched,,
+2282,cynic,,
+2282,cynicism,,
+2285,monotony,,
+2290,scarcely,,
+2291,solemnly,,
+2292,flexible,,
+2294,a UNESCO Intangible Cultural Heritage,,
+2296,space,,
+2296,spacious,,
+2297,solid,,
