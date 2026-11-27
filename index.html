@@ -72,13 +72,40 @@
         <button id="btnGateResetPw" class="text-btn" type="button" style="align-self:center;margin-top:2px;">
           パスワードを忘れた場合（再設定メール送信）
         </button>
-        <button id="btnGateGuest" class="text-btn" type="button" style="align-self:center;">
-          ログインせずに始める
+        <p id="authOfflineBanner" class="gate-offline-note hidden">オフライン中のため、オフラインモードで開始できます</p>
+        <button id="btnGateGuest" class="sub-btn full-btn" type="button">
+          ログインせずに使う（オフラインモード）
         </button>
         <p id="authGateError" class="gate-error"></p>
       </div>
     </div>
   </div>
+  <script>
+    (function () {
+      try {
+        var rawP = localStorage.getItem("hone_prefs_v2") || localStorage.getItem("hone_prefs_v1");
+        if (rawP) {
+          var p = JSON.parse(rawP);
+          var th = p.theme === "light-mist" ? "mist" : (p.theme || "mist");
+          document.documentElement.setAttribute("data-theme", th);
+          document.body.setAttribute("data-theme", th);
+          if (p.fontFamily) document.body.setAttribute("data-font", p.fontFamily);
+          if (p.fontSize) document.body.setAttribute("data-size", p.fontSize);
+        }
+        var rawS = localStorage.getItem("hone_state_v2") || localStorage.getItem("hone_state_v1");
+        var st = rawS ? JSON.parse(rawS) : null;
+        var hasLevels = st && ((st.levels && Object.keys(st.levels).length > 0) || (st.ratings && Object.keys(st.ratings).length > 0));
+        var isReturning = Boolean(
+          localStorage.getItem("hone_guest_mode_v1") === "1" ||
+          (st && (st.ownerUid || st.loginId || st.nickname || hasLevels))
+        );
+        var splash = document.getElementById("splashScreen");
+        if (isReturning && localStorage.getItem("hone_words_cache_v2") && splash) {
+          splash.classList.add("hidden");
+        }
+      } catch (_) {}
+    })();
+  </script>
 
   <!-- ==================== 初回ニックネーム設定モーダル ==================== -->
   <div id="usernameModal" class="modal-backdrop hidden">
@@ -457,6 +484,14 @@
               <option value="ja-en-type" selected>日本語 → 英単語</option>
               <option value="en-ja">英単語 → 日本語</option>
               <option value="example-type">例文の穴埋め</option>
+              <option value="derivative-type">派生語</option>
+            </select>
+          </div>
+          <div id="quizFirstCharRow" class="setup-row">
+            <label class="filter-label" for="quizShowFirstSelect">1文字目の表示</label>
+            <select id="quizShowFirstSelect" class="select-input">
+              <option value="show" selected>表示する</option>
+              <option value="hide">表示しない</option>
             </select>
           </div>
           <div class="setup-row">
@@ -473,6 +508,7 @@
               <option value="en-ja" selected>英単語 → 日本語</option>
               <option value="ja-en">日本語 → 英単語</option>
               <option value="example">例文の穴埋め</option>
+              <option value="derivative">派生語</option>
             </select>
           </div>
           <div class="setup-row">
@@ -790,9 +826,14 @@
         </button>
       </div>
 
-      <!-- A. リアルタイム対戦パネル（日本語→英語スペリング固定） -->
+      <!-- A. リアルタイム対戦パネル（タイピング早打ち：日本語→英語・例文・派生語） -->
       <div id="battleMatchPanel" class="battle-panel hidden">
         <div id="battleLobby" class="battle-stack">
+          <div id="battleAuthNotice" class="glass-card sync-banner hidden" style="margin-bottom:0;">
+            <span style="font-size:0.78rem;line-height:1.4;">フレンドとの通信対戦にはログインが必要です（未ログイン時は一人練習モード）</span>
+            <button id="btnBattleOpenAuth" class="sub-btn" type="button" style="flex-shrink:0;">ログイン</button>
+          </div>
+
           <div class="glass-card study-setup">
             <h3 class="card-title">ルームを作る</h3>
             <div class="setup-row">
@@ -802,6 +843,21 @@
                 <span>〜</span>
                 <input type="number" id="battleMax" class="num-input" min="1" value="100" />
               </div>
+            </div>
+            <div class="setup-row">
+              <label class="filter-label" for="battleFormat">問題形式</label>
+              <select id="battleFormat" class="select-input">
+                <option value="ja-en" selected>日本語 → 英語</option>
+                <option value="example">例文</option>
+                <option value="derivative">派生語</option>
+              </select>
+            </div>
+            <div class="setup-row">
+              <label class="filter-label" for="battleShowFirst">1文字目の表示</label>
+              <select id="battleShowFirst" class="select-input">
+                <option value="show" selected>表示する</option>
+                <option value="hide">表示しない</option>
+              </select>
             </div>
             <div class="setup-row">
               <label class="filter-label" for="battleCount">問題数</label>
@@ -877,6 +933,7 @@
                 <span id="battleQPos" class="pos-badge">動</span>
               </div>
               <div id="battlePrompt" class="spell-meaning">達成する</div>
+              <div id="battleSubNote" class="spell-subnote hidden"></div>
 
               <div id="battleSpellDisplayBox" class="spell-input-box" aria-live="polite">
                 <span id="battleSpellFirstChar" class="spell-first-char">a</span><span id="battleSpellTypedRest" class="spell-typed-rest"></span><span class="spell-cursor"></span>
@@ -1133,8 +1190,8 @@
       </div>
 
       <div class="glass-card study-setup">
-        <h3 class="card-title">単語データ（CSV手動読込）</h3>
-        <p class="setting-desc" style="margin:0;">ローカルのCSVファイルを読み込んで上書きできます。</p>
+        <h3 class="card-title">単語・例文・派生語データ（CSV手動読込）</h3>
+        <p class="setting-desc" style="margin:0;">ローカルの単語・例文・派生語CSVファイルを読み込んで反映できます。</p>
         <input type="file" id="csvFileInput" accept=".csv,text/csv" class="text-input" />
       </div>
 

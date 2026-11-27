@@ -1,34 +1,33 @@
 /* =========================================================
    HONE - Main Application Script (app.js)
-   英単語LEAP 全2,300語 学習PWA
+   英単語LEAP 全2,300語 学習PWA（0msオフライン即起動＆バックグラウンド同期）
    ========================================================= */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getAuth,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  verifyBeforeUpdateEmail,
-  signOut,
-  updateProfile
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs,
-  onSnapshot,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// Firebase SDK は起動を一切ブロックしないよう、オンライン時に動的 import で遅延読み込みする
+let initializeApp;
+let getAuth;
+let onAuthStateChanged;
+let signInWithEmailAndPassword;
+let createUserWithEmailAndPassword;
+let sendPasswordResetEmail;
+let EmailAuthProvider;
+let reauthenticateWithCredential;
+let verifyBeforeUpdateEmail;
+let signOut;
+let updateProfile;
+let getFirestore;
+let doc;
+let getDoc;
+let setDoc;
+let updateDoc;
+let deleteField;
+let collection;
+let addDoc;
+let query;
+let where;
+let getDocs;
+let onSnapshot;
+let serverTimestamp;
 
 /* =========================================================
    定数・設定
@@ -40,6 +39,7 @@ const STORAGE_KEYS = {
   LEGACY_PREFS: "hone_prefs_v1",
   CACHE_WORDS: "hone_words_cache_v2",
   CACHE_EXAMPLES: "hone_examples_cache_v2",
+  CACHE_DERIVATIVES: "hone_derivatives_cache_v1",
   GUEST_MODE: "hone_guest_mode_v1",
   DISMISS_RECOVERY: "hone_dismiss_recovery_v1"
 };
@@ -71,6 +71,7 @@ const DEFAULT_PREFS = {
   voiceAccent: "en-US",
   autoAudio: true,
   keepPosOnRed: true,
+  showFirstChar: true,
   fontSize: "md",
   fontFamily: "sans",
   theme: "mist"
@@ -120,6 +121,9 @@ const PART_RANGES = [
 let auth = null;
 let db = null;
 let firebaseReady = false;
+let firebaseInitPromise = null;
+let authListenersBound = false;
+let justSignedUpInteractive = false;
 let currentUser = null;
 let cloudUnsubscribe = null;
 let friendReqUnsubscribe = null;
@@ -131,6 +135,7 @@ let skipRecoveryThisSession = false;
 let wordsData = [];
 let wordsByNo = new Map();
 let examplesMap = new Map(); // no -> [{ rawEn, en, ja }]
+let derivativesMap = new Map(); // no -> [{ no, word, pos, meaning }]
 
 let state = structuredClone(DEFAULT_STATE);
 let prefs = structuredClone(DEFAULT_PREFS);
@@ -162,16 +167,18 @@ let fcFormat = "en-ja";
 // 確認テスト状態
 let quizQueue = [];
 let quizIndex = 0;
-let quizFormat = "ja-en-type"; // "ja-en-type" | "en-ja" | "example-type"
-let quizAnswers = {}; // { [no]: { correct: boolean, level: number } }
+let quizFormat = "ja-en-type"; // "ja-en-type" | "en-ja" | "example-type" | "derivative-type"
+let quizShowFirstChar = true;
+let quizAnswers = {}; // { [key]: { correct: boolean, level: number } }
 let quizIsRetest = false;
 let singleJudged = false;
 
-// タイピング入力状態（文字数非表示・先頭1文字固定表示）
+// タイピング入力状態（文字数非表示・先頭1文字表示切替対応）
 let spellFirstChar = "";
 let spellTypedRest = "";
 let spellAcceptedNormalized = []; // 小文字英字のみに正規化した許容正解リスト
 let spellDisplayAnswer = "";
+let spellAudioTargetWord = "";
 let spellJudged = false;
 
 // 筆記テスト状態（テスト用紙形式・タイマー・採点）
@@ -196,7 +203,7 @@ let listenState = {
   utteranceToken: 0
 };
 
-// 対戦状態（日本語→英語スペリング早打ち固定）
+// 対戦状態（スペリング早打ち：日本語→英語・例文・派生語 ＆ 1文字目表示切替対応）
 let battleRoomUnsub = null;
 let battleTimerId = null;
 let battleSpellFirstChar = "";
@@ -207,6 +214,11 @@ let battleSession = {
   roomCode: "",
   isHost: false,
   localOnly: false,
+  format: "ja-en",
+  showFirstChar: true,
+  minNo: 1,
+  maxNo: 100,
+  count: 10,
   questions: [],
   currentIndex: 0,
   answeredCurrent: false,
@@ -320,9 +332,11 @@ function loadLocalState() {
     const raw = localStorage.getItem(STORAGE_KEYS.STATE) || localStorage.getItem(STORAGE_KEYS.LEGACY_STATE);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const normalizedLevels = extractNormalizedLevelsMap(parsed);
       state = {
         ...DEFAULT_STATE,
         ...parsed,
+        levels: Object.keys(normalizedLevels).length > 0 ? normalizedLevels : (parsed.levels || {}),
         friendId: ensureFriendId(parsed.friendId || parsed.friendCode)
       };
     } else {
@@ -337,7 +351,8 @@ function loadLocalState() {
 function saveLocalState(markUpdated = true) {
   if (markUpdated) state.updatedAt = Date.now();
   try {
-    localStorage.setItem(STORAGE_KEYS.STATE, JSON.stringify(state));
+    const toStore = { ...state, ratings: state.levels || {} };
+    localStorage.setItem(STORAGE_KEYS.STATE, JSON.stringify(toStore));
   } catch (_) {}
   if (markUpdated && firebaseReady && currentUser) {
     scheduleCloudSync();
@@ -455,6 +470,43 @@ function buildExamplesMap(rows) {
   });
 }
 
+function buildDerivativesMap(rows) {
+  derivativesMap.clear();
+  rows.forEach((r) => {
+    const no = Number(r["単語番号"] || r.no || r.id || 0);
+    const word = (r["派生語"] || r.derivative || r.word || r.en || "").trim();
+    const pos = (r["品詞"] || r.pos || r.part_of_speech || "").trim();
+    const meaning = (r["意味"] || r["主な意味"] || r.meaning || r.ja || r.jp || "").trim();
+    if (!no || !word || !meaning) return;
+    if (!derivativesMap.has(no)) derivativesMap.set(no, []);
+    derivativesMap.get(no).push({ no, word, pos, meaning });
+  });
+}
+
+function syncMaxRangeInputs() {
+  const maxNo = wordsData.length ? wordsData[wordsData.length - 1].no : 2300;
+  ["#homeGoalMin", "#homeGoalMax", "#vocabMin", "#vocabMax", "#studyMin", "#studyMax", "#battleMin", "#battleMax"].forEach((sel) => {
+    const el = $(sel);
+    if (el) el.max = String(maxNo);
+  });
+}
+
+// 起動0ms用：localStorage に保存済みのCSVキャッシュを同期読み込み
+function loadCachedVocabularySync() {
+  try {
+    const cachedE = localStorage.getItem(STORAGE_KEYS.CACHE_EXAMPLES);
+    const cachedD = localStorage.getItem(STORAGE_KEYS.CACHE_DERIVATIVES);
+    const cachedW = localStorage.getItem(STORAGE_KEYS.CACHE_WORDS);
+    if (cachedE) buildExamplesMap(parseCsvRows(cachedE));
+    if (cachedD) buildDerivativesMap(parseCsvRows(cachedD));
+    if (cachedW) {
+      const parsed = normalizeWords(parseCsvRows(cachedW));
+      if (parsed.length) wordsData = parsed;
+    }
+  } catch (_) {}
+  syncMaxRangeInputs();
+}
+
 function normalizeWords(rows) {
   const list = rows
     .map((r, idx) => {
@@ -496,17 +548,24 @@ function normalizeWords(rows) {
 
 async function loadVocabularyData() {
   try {
-    const [wRes, eRes] = await Promise.all([
+    const [wRes, eRes, dRes] = await Promise.all([
       fetch("./data/words.csv"),
-      fetch("./data/examples.csv")
+      fetch("./data/examples.csv").catch(() => null),
+      fetch("./data/derivatives.csv").catch(() => null)
     ]);
-    if (!wRes.ok) throw new Error("words.csv fetch failed");
+    if (!wRes || !wRes.ok) throw new Error("words.csv fetch failed");
     const wText = await wRes.text();
 
-    if (eRes.ok) {
+    if (eRes && eRes.ok) {
       const eText = await eRes.text();
       try { localStorage.setItem(STORAGE_KEYS.CACHE_EXAMPLES, eText); } catch (_) {}
       buildExamplesMap(parseCsvRows(eText));
+    }
+
+    if (dRes && dRes.ok) {
+      const dText = await dRes.text();
+      try { localStorage.setItem(STORAGE_KEYS.CACHE_DERIVATIVES, dText); } catch (_) {}
+      buildDerivativesMap(parseCsvRows(dText));
     }
 
     const parsedWords = normalizeWords(parseCsvRows(wText));
@@ -515,17 +574,10 @@ async function loadVocabularyData() {
     try { localStorage.setItem(STORAGE_KEYS.CACHE_WORDS, wText); } catch (_) {}
   } catch (err) {
     console.warn("Using cached CSV fallback:", err);
-    const cachedE = localStorage.getItem(STORAGE_KEYS.CACHE_EXAMPLES);
-    const cachedW = localStorage.getItem(STORAGE_KEYS.CACHE_WORDS);
-    if (cachedE) buildExamplesMap(parseCsvRows(cachedE));
-    if (cachedW) wordsData = normalizeWords(parseCsvRows(cachedW));
+    loadCachedVocabularySync();
   }
 
-  const maxNo = wordsData.length ? wordsData[wordsData.length - 1].no : 2300;
-  ["#homeGoalMin", "#homeGoalMax", "#vocabMin", "#vocabMax", "#studyMin", "#studyMax", "#battleMin", "#battleMax"].forEach((sel) => {
-    const el = $(sel);
-    if (el) el.max = String(maxNo);
-  });
+  syncMaxRangeInputs();
 }
 
 function formatExampleHighlightedHtml(rawEn) {
@@ -546,20 +598,73 @@ function formatExampleClozeHtml(rawEn, targetWord) {
 }
 
 /* =========================================================
-   Firebase 初期化・認証・クラウド同期
+   Firebase 初期化・認証・クラウド同期（オンライン時のみ非同期ロード）
    ========================================================= */
 async function initFirebaseIfAvailable() {
+  if (firebaseReady && auth && db) return true;
+  if (navigator.onLine === false) return false;
+  if (firebaseInitPromise) return firebaseInitPromise;
+
+  firebaseInitPromise = (async () => {
+    try {
+      const [cfgModule, appMod, authMod, fsMod] = await Promise.all([
+        import("./firebase-config.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js")
+      ]);
+      const firebaseConfig = cfgModule.firebaseConfig || cfgModule.default;
+      if (!firebaseConfig || !firebaseConfig.apiKey) return false;
+
+      initializeApp = appMod.initializeApp;
+      getAuth = authMod.getAuth;
+      onAuthStateChanged = authMod.onAuthStateChanged;
+      signInWithEmailAndPassword = authMod.signInWithEmailAndPassword;
+      createUserWithEmailAndPassword = authMod.createUserWithEmailAndPassword;
+      sendPasswordResetEmail = authMod.sendPasswordResetEmail;
+      EmailAuthProvider = authMod.EmailAuthProvider;
+      reauthenticateWithCredential = authMod.reauthenticateWithCredential;
+      verifyBeforeUpdateEmail = authMod.verifyBeforeUpdateEmail;
+      signOut = authMod.signOut;
+      updateProfile = authMod.updateProfile;
+
+      getFirestore = fsMod.getFirestore;
+      doc = fsMod.doc;
+      getDoc = fsMod.getDoc;
+      setDoc = fsMod.setDoc;
+      updateDoc = fsMod.updateDoc;
+      deleteField = fsMod.deleteField;
+      collection = fsMod.collection;
+      addDoc = fsMod.addDoc;
+      query = fsMod.query;
+      where = fsMod.where;
+      getDocs = fsMod.getDocs;
+      onSnapshot = fsMod.onSnapshot;
+      serverTimestamp = fsMod.serverTimestamp;
+
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      firebaseReady = true;
+      return true;
+    } catch (err) {
+      console.warn("Firebase unavailable (silent offline fallback):", err);
+      firebaseInitPromise = null;
+      return false;
+    }
+  })();
+
+  return firebaseInitPromise;
+}
+
+async function startBackgroundFirebaseSync() {
+  if (navigator.onLine === false) return false;
   try {
-    const cfgModule = await import("./firebase-config.js");
-    const firebaseConfig = cfgModule.firebaseConfig || cfgModule.default;
-    if (!firebaseConfig || !firebaseConfig.apiKey) return false;
-    const app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    firebaseReady = true;
+    const ok = await initFirebaseIfAvailable();
+    if (!ok) return false;
+    setupAuthListeners();
     return true;
-  } catch (err) {
-    console.warn("Firebase unavailable (offline mode):", err);
+  } catch (_) {
     return false;
   }
 }
@@ -681,14 +786,17 @@ function applyRemoteSnapshotToState(remote, uid, isInitialLogin = false) {
   const sameOwner = !state.ownerUid || state.ownerUid === uid;
   const baseLocal = sameOwner ? state : structuredClone(DEFAULT_STATE);
   const remoteCombinedLevels = extractNormalizedLevelsMap(remote);
+  const localUpdated = Number(baseLocal.updatedAt || 0);
+  const remoteUpdated = Number(remote.updatedAt || 0);
+  const preferLocalOnConflict = sameOwner && localUpdated > remoteUpdated;
 
-  const mergedLevels = isInitialLogin && !state.ownerUid
-    ? { ...(baseLocal.levels || {}), ...remoteCombinedLevels }
-    : (Object.keys(remoteCombinedLevels).length > 0 ? remoteCombinedLevels : { ...(baseLocal.levels || {}) });
+  const mergedLevels = preferLocalOnConflict
+    ? { ...remoteCombinedLevels, ...(baseLocal.levels || {}) }
+    : { ...(baseLocal.levels || {}), ...remoteCombinedLevels };
 
-  const mergedStreaks = isInitialLogin && !state.ownerUid
-    ? { ...(baseLocal.streaks || {}), ...(remote.streaks || {}) }
-    : { ...(remote.streaks || baseLocal.streaks || {}) };
+  const mergedStreaks = preferLocalOnConflict
+    ? { ...(remote.streaks || {}), ...(baseLocal.streaks || {}) }
+    : { ...(baseLocal.streaks || {}), ...(remote.streaks || {}) };
 
   const mergedLog = { ...(baseLocal.studyLog || {}), ...(remote.studyLog || {}) };
   Object.keys(mergedLog).forEach((k) => {
@@ -715,15 +823,17 @@ function applyRemoteSnapshotToState(remote, uid, isInitialLogin = false) {
       : (baseLocal.studiedDate === todayKey() ? baseLocal.studiedIdsToday || [] : []),
     studiedDate: todayKey(),
     streakDays: Math.max(Number(remote.streakDays || 0), Number(baseLocal.streakDays || 0)),
-    lastStudyDate: remote.lastStudyDate || baseLocal.lastStudyDate || "",
+    lastStudyDate: preferLocalOnConflict
+      ? (baseLocal.lastStudyDate || remote.lastStudyDate || "")
+      : (remote.lastStudyDate || baseLocal.lastStudyDate || ""),
     friends: remoteFriends,
     friendUids: remoteFriendUids,
     outgoingFriendUids: Array.isArray(remote.outgoingFriendUids) ? remote.outgoingFriendUids : (baseLocal.outgoingFriendUids || []),
     outgoingFriends: Array.isArray(remote.outgoingFriends) ? remote.outgoingFriends : (baseLocal.outgoingFriends || []),
-    updatedAt: Math.max(Number(remote.updatedAt || 0), Date.now())
+    updatedAt: Math.max(localUpdated, remoteUpdated, Date.now())
   };
 
-  if (remote.goalMin && remote.goalMax) {
+  if (!preferLocalOnConflict && remote.goalMin && remote.goalMax) {
     prefs.goalMin = Number(remote.goalMin);
     prefs.goalMax = Number(remote.goalMax);
     vocabMin = prefs.goalMin;
@@ -910,7 +1020,8 @@ function subscribeFriendRequests(uid) {
 }
 
 function setupAuthListeners() {
-  if (!firebaseReady || !auth) return;
+  if (!firebaseReady || !auth || authListenersBound) return;
+  authListenersBound = true;
   onAuthStateChanged(auth, async (user) => {
     currentUser = user;
     if (user) {
@@ -924,6 +1035,8 @@ function setupAuthListeners() {
       if (!state.nickname && user.displayName) {
         state.nickname = user.displayName;
       }
+      saveLocalState(false);
+
       try {
         const snap = await getDoc(doc(db, "users", user.uid));
         if (snap.exists()) {
@@ -934,17 +1047,17 @@ function setupAuthListeners() {
         }
         await checkOutgoingFriendApprovals();
       } catch (err) {
-        console.warn("Initial auth sync error:", err);
+        // バックグラウンド同期失敗時もエラー画面は出さず静かに終了
+        console.warn("Background auth sync skipped:", err);
       }
 
       subscribeUserDoc(user.uid);
       subscribeFriendRequests(user.uid);
       $("#authGate")?.classList.add("hidden");
 
-      if (!state.nickname) {
+      if (!state.nickname && justSignedUpInteractive) {
+        justSignedUpInteractive = false;
         $("#usernameModal")?.classList.remove("hidden");
-      } else {
-        maybePromptRecoveryEmail();
       }
       renderAll();
     } else {
@@ -1297,6 +1410,7 @@ function renderVocabList(list = getFilteredVocab()) {
   container.innerHTML = list.map((w) => {
     const lv = Number(state.levels?.[w.no] || 0);
     const exList = examplesMap.get(w.no) || [];
+    const derivList = derivativesMap.get(w.no) || [];
     const meaningsHtml = w.meanings
       .map((m) => `<span class="vocab-meaning-line">${escapeHtml(m)}</span>`)
       .join("");
@@ -1309,6 +1423,23 @@ function renderVocabList(list = getFilteredVocab()) {
             <p class="acc-text">${formatExampleHighlightedHtml(ex.rawEn)}</p>
             ${ex.ja ? `<p class="acc-text sub-label" style="margin-bottom:6px;">${escapeHtml(ex.ja)}</p>` : ""}
           `).join("")}
+        </div>
+      `
+      : "";
+
+    const derivativesHtml = derivList.length
+      ? `
+        <div class="acc-block">
+          <span class="acc-label">派生語</span>
+          <div class="deriv-list">
+            ${derivList.map((d) => `
+              <div class="deriv-row">
+                ${d.pos ? `<span class="pos-badge">${escapeHtml(d.pos)}</span>` : ""}
+                <span class="deriv-word">${escapeHtml(d.word)}</span>
+                <span class="deriv-meaning">${escapeHtml(d.meaning)}</span>
+              </div>
+            `).join("")}
+          </div>
         </div>
       `
       : "";
@@ -1344,6 +1475,7 @@ function renderVocabList(list = getFilteredVocab()) {
             </div>
             <button type="button" class="audio-pill" data-speak-word="${escapeHtml(w.word)}">${speakerIcon}<span>発音</span></button>
           </div>
+          ${derivativesHtml}
           ${examplesHtml}
           ${w.note ? `
             <div class="acc-block">
@@ -1544,7 +1676,9 @@ function renderListenStep(triggerAudio = true) {
     btn.classList.toggle("selected", Number(btn.dataset.listenRate) === lv);
   });
 
-  clearTimeout(listenState.timerId);
+  if (triggerAudio || !listenState.playing) {
+    clearTimeout(listenState.timerId);
+  }
   if (triggerAudio && listenState.playing) {
     const myToken = ++listenState.utteranceToken;
     speakEnglish(item.word, listenState.speed, () => {
@@ -1627,6 +1761,12 @@ function openStudySetupForMode(mode) {
   updateBackButtonVisibility();
 }
 
+function updateQuizFirstCharVisibility() {
+  const qFmt = $("#quizFormatSelect")?.value || "ja-en-type";
+  const isTyping = qFmt === "ja-en-type" || qFmt === "example-type" || qFmt === "derivative-type";
+  $("#quizFirstCharRow")?.classList.toggle("hidden", !isTyping);
+}
+
 function setStudyModeTab(mode) {
   currentStudyMode = mode;
   $("#fcOptions")?.classList.toggle("hidden", mode !== "flashcard");
@@ -1635,6 +1775,7 @@ function setStudyModeTab(mode) {
   $("#listenOptions")?.classList.toggle("hidden", mode !== "listen");
   // 確認テストと筆記テストはランダム出題固定のため「出題順」行を非表示
   $("#studyOrderRow")?.classList.toggle("hidden", mode === "quiz" || mode === "paper");
+  if (mode === "quiz") updateQuizFirstCharVisibility();
 
   const setupTitle = $("#studySetupTitle");
   const startBtn = $("#btnStartStudy");
@@ -1694,12 +1835,28 @@ function buildStudyCandidates() {
     const qFmt = $("#quizFormatSelect")?.value || "ja-en-type";
     if (qFmt === "example-type") {
       list = list.filter((w) => examplesMap.has(w.no));
+    } else if (qFmt === "derivative-type") {
+      const expanded = [];
+      list.forEach((w) => {
+        (derivativesMap.get(w.no) || []).forEach((d, idx) => {
+          expanded.push({ ...w, _deriv: d, _qKey: `${w.no}_d${idx}` });
+        });
+      });
+      list = expanded;
     }
     list = shuffleArray(list);
   } else if (currentStudyMode === "paper") {
     const pFmt = $("#paperFormatSelect")?.value || "en-ja";
     if (pFmt === "example") {
       list = list.filter((w) => examplesMap.has(w.no));
+    } else if (pFmt === "derivative") {
+      const expanded = [];
+      list.forEach((w) => {
+        (derivativesMap.get(w.no) || []).forEach((d, idx) => {
+          expanded.push({ ...w, _deriv: d, _qKey: `${w.no}_d${idx}` });
+        });
+      });
+      list = expanded;
     }
     list = shuffleArray(list);
   } else if (order === "random") {
@@ -1715,8 +1872,13 @@ function startSelectedStudyMode() {
       (currentStudyMode === "flashcard" && $("#fcFormatSelect")?.value === "example") ||
       (currentStudyMode === "quiz" && $("#quizFormatSelect")?.value === "example-type") ||
       (currentStudyMode === "paper" && $("#paperFormatSelect")?.value === "example");
+    const isDerivativeMode =
+      (currentStudyMode === "quiz" && $("#quizFormatSelect")?.value === "derivative-type") ||
+      (currentStudyMode === "paper" && $("#paperFormatSelect")?.value === "derivative");
     if (isExampleMode) {
       showToast("この範囲に例文データがありません（No.301〜600 に収録）");
+    } else if (isDerivativeMode) {
+      showToast("この範囲に派生語データがありません");
     } else {
       showToast("条件に一致する単語がありません");
     }
@@ -1751,6 +1913,9 @@ function startSelectedStudyMode() {
     quizQueue = candidates.slice(0, limit);
     quizIndex = 0;
     quizFormat = $("#quizFormatSelect")?.value || "ja-en-type";
+    quizShowFirstChar = ($("#quizShowFirstSelect")?.value || "show") === "show";
+    prefs.showFirstChar = quizShowFirstChar;
+    saveLocalPrefs();
     quizAnswers = {};
     quizIsRetest = false;
     openQuizStage();
@@ -1974,7 +2139,7 @@ function openQuizStage() {
   $("#quizRetestBadge")?.classList.toggle("hidden", !quizIsRetest);
   setStudyLockMode(true);
 
-  if (quizFormat === "ja-en-type" || quizFormat === "example-type") {
+  if (quizFormat === "ja-en-type" || quizFormat === "example-type" || quizFormat === "derivative-type") {
     $("#quizSingleBox")?.classList.add("hidden");
     $("#quizProgressWrap")?.classList.remove("hidden");
     $("#quizSpellBox")?.classList.remove("hidden");
@@ -1987,8 +2152,12 @@ function openQuizStage() {
   }
 }
 
-/* ---------- タイピング入力テスト（文字数非表示・先頭1文字固定表示） ---------- */
-function buildTypingSpecForWord(rawWord) {
+function getQuizItemKey(item) {
+  return String(item?._qKey || item?.no || "");
+}
+
+/* ---------- タイピング入力テスト（文字数非表示・先頭1文字表示切替対応） ---------- */
+function buildTypingSpecForWord(rawWord, showFirstChar = true) {
   let cleaned = String(rawWord || "").replace(/～/g, "").trim();
   const accepted = new Set();
 
@@ -2003,26 +2172,37 @@ function buildTypingSpecForWord(rawWord) {
   }
 
   const alphaOnly = cleaned.replace(/[^a-zA-Z]/g, "").toLowerCase();
-  const firstChar = alphaOnly[0] || "";
+  const initial = alphaOnly[0] || "";
   return {
-    firstChar,
+    firstChar: showFirstChar ? initial : "",
+    initialChar: initial,
     accepted: Array.from(accepted).filter(Boolean),
     displayAnswer: rawWord
   };
 }
 
-function buildTypingSpecForExample(item) {
+function buildTypingSpecForExample(item, showFirstChar = true) {
   const exList = examplesMap.get(item.no) || [];
   const ex = exList[Math.floor(Math.random() * exList.length)] || null;
   if (!ex) {
-    const fallback = buildTypingSpecForWord(item.word);
-    return { ...fallback, promptHtml: escapeHtml(item.meanings.join(" ／ ")), subNote: "" };
+    const fallback = buildTypingSpecForWord(item.word, showFirstChar);
+    return {
+      ...fallback,
+      rawCloze: item.meanings.join(" ／ "),
+      promptHtml: escapeHtml(item.meanings.join(" ／ ")),
+      subNote: ""
+    };
   }
 
   const m = ex.rawEn.match(/\[\[([^\]]+)\]\]/);
   if (!m) {
-    const fallback = buildTypingSpecForWord(item.word);
-    return { ...fallback, promptHtml: escapeHtml(ex.en), subNote: ex.ja };
+    const fallback = buildTypingSpecForWord(item.word, showFirstChar);
+    return {
+      ...fallback,
+      rawCloze: ex.en,
+      promptHtml: escapeHtml(ex.en),
+      subNote: ex.ja
+    };
   }
 
   const bracketPhrase = m[1].trim();
@@ -2035,23 +2215,55 @@ function buildTypingSpecForExample(item) {
   }
 
   const alphaTarget = targetToken.replace(/[^a-zA-Z]/g, "").toLowerCase();
-  const firstChar = alphaTarget[0] || (item.word[0] || "").toLowerCase();
+  const initial = alphaTarget[0] || (item.word[0] || "").toLowerCase();
+  const shownFirst = showFirstChar ? initial : "";
+  const blankText = shownFirst ? `${escapeHtml(shownFirst)}…` : "（　　）";
 
   // [[...]] 内が複数語の場合は対象語のみ空欄にし、前後の補助語はそのまま残す
+  const rawReplaced = wordsInBracket
+    .map((w) => (w === targetToken ? "[[blank]]" : w))
+    .join(" ");
+  const rawCloze = ex.rawEn.replace(/\[\[([^\]]+)\]\]/, rawReplaced);
+
   const replacedInside = wordsInBracket
     .map((w) => (w === targetToken ? `__BLANK__` : escapeHtml(w)))
     .join(" ");
   const fullEscaped = escapeHtml(ex.rawEn).replace(
     /\[\[([^\]]+)\]\]/,
-    replacedInside.replace("__BLANK__", `<span class="cloze-blank">${escapeHtml(firstChar)}…</span>`)
+    replacedInside.replace("__BLANK__", `<span class="cloze-blank">${blankText}</span>`)
   );
 
   return {
-    firstChar,
+    firstChar: shownFirst,
+    initialChar: initial,
     accepted: [alphaTarget],
     displayAnswer: targetToken === item.word ? targetToken : `${targetToken}（原形: ${item.word}）`,
+    rawCloze,
     promptHtml: fullEscaped,
     subNote: ex.ja || item.meanings.join(" ／ ")
+  };
+}
+
+function buildTypingSpecForDerivative(item, showFirstChar = true) {
+  const d = item._deriv || (derivativesMap.get(item.no) || [])[0];
+  if (!d) {
+    const fallback = buildTypingSpecForWord(item.word, showFirstChar);
+    return {
+      ...fallback,
+      pos: item.pos || "",
+      promptText: item.meanings.join(" ／ "),
+      subNote: "",
+      audioWord: item.word
+    };
+  }
+  const wSpec = buildTypingSpecForWord(d.word, showFirstChar);
+  return {
+    ...wSpec,
+    pos: d.pos || "",
+    promptText: d.meaning,
+    subNote: `派生元: ${item.word}（${item.meanings[0] || ""}）`,
+    displayAnswer: `${d.word}（派生元: ${item.word}）`,
+    audioWord: d.word
   };
 }
 
@@ -2064,29 +2276,49 @@ function renderSpellQuestion() {
   if ($("#qSpellNo")) $("#qSpellNo").textContent = `No. ${item.no}`;
 
   const posEl = $("#qSpellPos");
-  if (posEl) {
-    posEl.textContent = item.pos || "";
-    posEl.classList.toggle("hidden", !item.pos);
-  }
-
   const meaningEl = $("#qSpellMeaning");
   const subNoteEl = $("#qSpellSubNote");
 
   if (quizFormat === "example-type") {
-    const exSpec = buildTypingSpecForExample(item);
+    const exSpec = buildTypingSpecForExample(item, quizShowFirstChar);
     spellFirstChar = exSpec.firstChar;
     spellAcceptedNormalized = exSpec.accepted;
     spellDisplayAnswer = exSpec.displayAnswer;
+    spellAudioTargetWord = item.word;
+    if (posEl) {
+      posEl.textContent = item.pos || "";
+      posEl.classList.toggle("hidden", !item.pos);
+    }
     if (meaningEl) meaningEl.innerHTML = exSpec.promptHtml;
     if (subNoteEl) {
       subNoteEl.textContent = exSpec.subNote;
       subNoteEl.classList.toggle("hidden", !exSpec.subNote);
     }
+  } else if (quizFormat === "derivative-type") {
+    const dSpec = buildTypingSpecForDerivative(item, quizShowFirstChar);
+    spellFirstChar = dSpec.firstChar;
+    spellAcceptedNormalized = dSpec.accepted;
+    spellDisplayAnswer = dSpec.displayAnswer;
+    spellAudioTargetWord = dSpec.audioWord;
+    if (posEl) {
+      posEl.textContent = dSpec.pos || "";
+      posEl.classList.toggle("hidden", !dSpec.pos);
+    }
+    if (meaningEl) meaningEl.textContent = dSpec.promptText;
+    if (subNoteEl) {
+      subNoteEl.textContent = dSpec.subNote;
+      subNoteEl.classList.toggle("hidden", !dSpec.subNote);
+    }
   } else {
-    const wSpec = buildTypingSpecForWord(item.word);
+    const wSpec = buildTypingSpecForWord(item.word, quizShowFirstChar);
     spellFirstChar = wSpec.firstChar;
     spellAcceptedNormalized = wSpec.accepted;
     spellDisplayAnswer = wSpec.displayAnswer;
+    spellAudioTargetWord = item.word;
+    if (posEl) {
+      posEl.textContent = item.pos || "";
+      posEl.classList.toggle("hidden", !item.pos);
+    }
     if (meaningEl) meaningEl.textContent = item.meanings.join(" ／ ");
     if (subNoteEl) {
       subNoteEl.textContent = "";
@@ -2147,7 +2379,7 @@ function evaluateSpellSubmission() {
   const isCorrect = spellAcceptedNormalized.includes(fullNormalized);
   const streakInfo = applyQuizResultToMastery(item.no, isCorrect);
 
-  quizAnswers[item.no] = { correct: isCorrect, level: streakInfo.nextLv };
+  quizAnswers[getQuizItemKey(item)] = { correct: isCorrect, level: streakInfo.nextLv };
 
   renderSpellInputBox(isCorrect);
   $("#qSpellActionRow")?.classList.add("hidden");
@@ -2172,7 +2404,7 @@ function evaluateSpellSubmission() {
   }
 
   if (prefs.autoAudio) {
-    speakEnglish(item.word);
+    speakEnglish(spellAudioTargetWord || item.word);
   }
 }
 
@@ -2221,7 +2453,7 @@ function recordSingleQuizJudge(isCorrect) {
   singleJudged = true;
 
   const streakInfo = applyQuizResultToMastery(item.no, isCorrect);
-  quizAnswers[item.no] = { correct: isCorrect, level: streakInfo.nextLv };
+  quizAnswers[getQuizItemKey(item)] = { correct: isCorrect, level: streakInfo.nextLv };
 
   $("#qSingleJudgeBtns")?.classList.add("hidden");
   $("#qSingleFeedback")?.classList.remove("hidden");
@@ -2251,8 +2483,8 @@ function showQuizResults() {
   $("#quizResultBox")?.classList.remove("hidden");
 
   const total = quizQueue.length;
-  const correctCount = quizQueue.filter((item) => quizAnswers[item.no]?.correct).length;
-  const wrongItems = quizQueue.filter((item) => !quizAnswers[item.no]?.correct);
+  const correctCount = quizQueue.filter((item) => quizAnswers[getQuizItemKey(item)]?.correct).length;
+  const wrongItems = quizQueue.filter((item) => !quizAnswers[getQuizItemKey(item)]?.correct);
 
   if ($("#quizResultScore")) $("#quizResultScore").textContent = `${correctCount} / ${total} 正解`;
   if ($("#quizResultNote")) {
@@ -2337,21 +2569,42 @@ function openPaperStage(timerSec = 0) {
   renderPaperSheet();
 }
 
+function getPaperItemKey(item) {
+  return String(item?._qKey || item?.no || "");
+}
+
 function getPaperQuestionData(item) {
   const ex = (examplesMap.get(item.no) || [])[0] || null;
   if (paperFormat === "ja-en") {
     return {
+      pos: item.pos || "",
+      speakWord: item.word,
       promptHtml: escapeHtml(item.meanings.join(" ／ ")),
       answerText: item.word
     };
   }
+  if (paperFormat === "derivative") {
+    const d = item._deriv || (derivativesMap.get(item.no) || [])[0];
+    if (d) {
+      return {
+        pos: d.pos || "",
+        speakWord: d.word,
+        promptHtml: `${escapeHtml(d.meaning)} <span class="sub-label">（派生元: ${escapeHtml(item.word)}）</span>`,
+        answerText: d.word
+      };
+    }
+  }
   if (paperFormat === "example" && ex) {
     return {
+      pos: item.pos || "",
+      speakWord: item.word,
       promptHtml: `${formatExampleClozeHtml(ex.rawEn, item.word)}${ex.ja ? `<div style="font-size:0.8rem;color:var(--text-sub);font-weight:600;margin-top:3px;">${escapeHtml(ex.ja)}</div>` : ""}`,
       answerText: `${item.word}（${item.meanings[0] || ""}）`
     };
   }
   return {
+    pos: item.pos || "",
+    speakWord: item.word,
     promptHtml: escapeHtml(item.word),
     answerText: item.meanings.join(" ／ ")
   };
@@ -2363,12 +2616,13 @@ function renderPaperSheet() {
 
   listEl.innerHTML = paperQueue.map((item, idx) => {
     const qData = getPaperQuestionData(item);
-    const mark = paperMarks[item.no];
+    const key = getPaperItemKey(item);
+    const mark = paperMarks[key];
     return `
       <div class="paper-item-row" data-paper-no="${item.no}">
         <div class="paper-q-head">
-          <span class="paper-q-num">問 ${idx + 1}　No.${item.no}${item.pos ? ` [${escapeHtml(item.pos)}]` : ""}</span>
-          ${paperGradingMode ? `<button type="button" class="audio-pill" data-paper-speak="${escapeHtml(item.word)}" style="padding:3px 8px;font-size:0.7rem;">発音</button>` : ""}
+          <span class="paper-q-num">問 ${idx + 1}　No.${item.no}${qData.pos ? ` [${escapeHtml(qData.pos)}]` : ""}</span>
+          ${paperGradingMode ? `<button type="button" class="audio-pill" data-paper-speak="${escapeHtml(qData.speakWord)}" style="padding:3px 8px;font-size:0.7rem;">発音</button>` : ""}
         </div>
         <div class="paper-q-prompt">${qData.promptHtml}</div>
         ${!paperGradingMode
@@ -2377,8 +2631,8 @@ function renderPaperSheet() {
             <div class="paper-ans-row">
               <div class="paper-ans-text">${escapeHtml(qData.answerText)}</div>
               <div class="paper-ox-btns">
-                <button type="button" class="paper-ox-mini wrong${mark === false ? " selected" : ""}" data-paper-mark="wrong" data-no="${item.no}" aria-label="不正解">×</button>
-                <button type="button" class="paper-ox-mini correct${mark === true ? " selected" : ""}" data-paper-mark="correct" data-no="${item.no}" aria-label="正解">○</button>
+                <button type="button" class="paper-ox-mini wrong${mark === false ? " selected" : ""}" data-paper-mark="wrong" data-key="${escapeHtml(key)}" aria-label="不正解">×</button>
+                <button type="button" class="paper-ox-mini correct${mark === true ? " selected" : ""}" data-paper-mark="correct" data-key="${escapeHtml(key)}" aria-label="正解">○</button>
               </div>
             </div>
           `
@@ -2393,8 +2647,8 @@ function renderPaperSheet() {
     });
     listEl.querySelectorAll("[data-paper-mark]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const no = Number(btn.dataset.no);
-        paperMarks[no] = btn.dataset.paperMark === "correct";
+        const key = btn.dataset.key;
+        paperMarks[key] = btn.dataset.paperMark === "correct";
         renderPaperSheet();
       });
     });
@@ -2415,8 +2669,9 @@ function finishPaperScoring() {
   updateBackButtonVisibility();
   let correctCount = 0;
   paperQueue.forEach((item) => {
-    const isOk = paperMarks[item.no] === true;
-    paperMarks[item.no] = isOk;
+    const key = getPaperItemKey(item);
+    const isOk = paperMarks[key] === true;
+    paperMarks[key] = isOk;
     if (isOk) correctCount++;
     applyQuizResultToMastery(item.no, isOk);
   });
@@ -2439,6 +2694,19 @@ function finishPaperScoring() {
 /* =========================================================
    フレンド・対戦画面（日本語→英語スペリング固定対戦 ＆ 相互承認フレンド）
    ========================================================= */
+const BATTLE_FORMAT_LABELS = {
+  "ja-en": "日本語 → 英語",
+  "example": "例文",
+  "derivative": "派生語"
+};
+
+function updateBattleAuthBanner() {
+  const notice = $("#battleAuthNotice");
+  if (!notice) return;
+  const loggedIn = Boolean((firebaseReady && currentUser) || state.ownerUid);
+  notice.classList.toggle("hidden", loggedIn);
+}
+
 function openBattlePicker() {
   leaveBattleRoom();
   $("#battleMatchPanel")?.classList.add("hidden");
@@ -2456,6 +2724,7 @@ function openBattleSubPanel(panelType) {
   const titleEl = $("#headerTitle");
   if (titleEl) titleEl.textContent = panelType === "match" ? "リアルタイム対戦" : "フレンド一覧";
   updateSyncUi();
+  updateBattleAuthBanner();
   if (panelType === "friends") {
     checkOutgoingFriendApprovals().then(() => renderFriendsList());
     renderFriendsList();
@@ -2465,31 +2734,85 @@ function openBattleSubPanel(panelType) {
 
 function renderBattleFriendView() {
   updateSyncUi();
+  updateBattleAuthBanner();
   renderFriendsList();
 }
 
-function buildBattleQuestions(minNo, maxNo, count) {
+function buildBattleQuestions(minNo, maxNo, count, format = "ja-en", showFirstChar = true) {
   const s = Math.min(minNo, maxNo);
   const e = Math.max(minNo, maxNo);
+
+  if (format === "example") {
+    const exCandidates = wordsData.filter((w) => w.no >= s && w.no <= e && examplesMap.has(w.no));
+    if (!exCandidates.length) return [];
+    const picked = shuffleArray(exCandidates).slice(0, count);
+    return picked.map((target) => {
+      const exSpec = buildTypingSpecForExample(target, showFirstChar);
+      return {
+        qType: "example",
+        no: target.no,
+        pos: target.pos || "",
+        prompt: exSpec.rawCloze,
+        subNote: exSpec.subNote || "",
+        answerWord: exSpec.displayAnswer,
+        showFirstChar: Boolean(showFirstChar),
+        firstChar: exSpec.firstChar,
+        initialChar: exSpec.initialChar,
+        accepted: exSpec.accepted
+      };
+    });
+  }
+
+  if (format === "derivative") {
+    const derivPool = [];
+    wordsData.forEach((w) => {
+      if (w.no < s || w.no > e) return;
+      (derivativesMap.get(w.no) || []).forEach((d) => {
+        derivPool.push({ w, d });
+      });
+    });
+    if (!derivPool.length) return [];
+    const picked = shuffleArray(derivPool).slice(0, count);
+    return picked.map(({ w, d }) => {
+      const spec = buildTypingSpecForWord(d.word, showFirstChar);
+      return {
+        qType: "derivative",
+        no: w.no,
+        pos: d.pos || "",
+        prompt: d.meaning,
+        subNote: `派生元: ${w.word}（${w.meanings[0] || ""}）`,
+        answerWord: `${d.word}（派生元: ${w.word}）`,
+        showFirstChar: Boolean(showFirstChar),
+        firstChar: spec.firstChar,
+        initialChar: spec.initialChar,
+        accepted: spec.accepted
+      };
+    });
+  }
+
   const pool = wordsData.filter((w) => w.no >= s && w.no <= e);
-  const source = pool.length >= 1 ? pool : wordsData;
-  const picked = shuffleArray(source).slice(0, count);
+  if (!pool.length) return [];
+  const picked = shuffleArray(pool).slice(0, count);
 
   return picked.map((target) => {
-    const spec = buildTypingSpecForWord(target.word);
+    const spec = buildTypingSpecForWord(target.word, showFirstChar);
     return {
+      qType: "ja-en",
       no: target.no,
       pos: target.pos || "",
       prompt: target.meanings.join(" ／ "),
+      subNote: "",
       answerWord: target.word,
+      showFirstChar: Boolean(showFirstChar),
       firstChar: spec.firstChar,
+      initialChar: spec.initialChar,
       accepted: spec.accepted
     };
   });
 }
 
 function myPlayerId() {
-  return currentUser?.uid || `local_${state.friendId}`;
+  return currentUser?.uid || state.ownerUid || `local_${state.friendId}`;
 }
 
 function myPlayerName() {
@@ -2500,22 +2823,40 @@ async function createBattleRoomAction() {
   const minNo = Number($("#battleMin")?.value || 1);
   const maxNo = Number($("#battleMax")?.value || 100);
   const count = Number($("#battleCount")?.value || 10);
-  const questions = buildBattleQuestions(minNo, maxNo, count);
+  const format = $("#battleFormat")?.value || "ja-en";
+  const showFirstChar = ($("#battleShowFirst")?.value || "show") === "show";
+
+  const questions = buildBattleQuestions(minNo, maxNo, count, format, showFirstChar);
   if (!questions.length) {
-    showToast("問題を作成できませんでした");
+    if (format === "example") {
+      showToast("この範囲に例文データがありません（No.301〜600 に収録）");
+    } else if (format === "derivative") {
+      showToast("この範囲に派生語データがありません");
+    } else {
+      showToast("選択した範囲に問題データがありません");
+    }
     return;
+  }
+
+  if (!firebaseReady && navigator.onLine !== false) {
+    await startBackgroundFirebaseSync();
   }
 
   const code = generateCode(6);
   const pid = myPlayerId();
   const players = {
-    [pid]: { name: myPlayerName(), score: 0 }
+    [pid]: { name: myPlayerName(), score: 0, progress: 0, finished: false }
   };
 
   battleSession = {
     roomCode: code,
     isHost: true,
     localOnly: !(firebaseReady && db && currentUser),
+    format,
+    showFirstChar,
+    minNo: Math.min(minNo, maxNo),
+    maxNo: Math.max(minNo, maxNo),
+    count: questions.length,
     questions,
     currentIndex: 0,
     answeredCurrent: false,
@@ -2529,21 +2870,26 @@ async function createBattleRoomAction() {
         roomCode: code,
         hostId: pid,
         status: "waiting",
-        minNo,
-        maxNo,
-        count,
-        format: "ja-en-spell",
+        minNo: battleSession.minNo,
+        maxNo: battleSession.maxNo,
+        count: battleSession.count,
+        format,
+        showFirstChar,
         questions,
         players,
         createdAt: serverTimestamp()
       });
       subscribeBattleRoom(code);
-    } catch (_) {
+    } catch (err) {
+      console.warn("Battle room cloud creation fallback:", err);
       battleSession.localOnly = true;
+      showToast("通信できないため一人練習モードで開始します");
     }
+  } else {
+    showToast("一人練習モードでルームを作成しました");
   }
 
-  showBattleWaitingRoom(minNo, maxNo, count);
+  showBattleWaitingRoom();
 }
 
 async function joinBattleRoomAction() {
@@ -2552,8 +2898,11 @@ async function joinBattleRoomAction() {
     showToast("合言葉を入力してください");
     return;
   }
+  if (!firebaseReady && navigator.onLine !== false) {
+    await startBackgroundFirebaseSync();
+  }
   if (!firebaseReady || !db || !currentUser) {
-    showToast("合言葉参加にはログインが必要です");
+    showToast("合言葉での通信対戦にはログインが必要です");
     return;
   }
 
@@ -2561,21 +2910,37 @@ async function joinBattleRoomAction() {
     const ref = doc(db, "battleRooms", code);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
-      showToast("ルームが見つかりません");
+      showToast("ルームが見つかりません（合言葉をご確認ください）");
       return;
     }
     const data = snap.data();
+    if (data.status === "finished" || data.status === "closed") {
+      showToast("このルームの対戦はすでに終了しています");
+      return;
+    }
     const pid = myPlayerId();
+    const myEntry = {
+      name: myPlayerName(),
+      score: data.players?.[pid]?.score || 0,
+      progress: data.players?.[pid]?.progress || 0,
+      finished: false
+    };
+    await updateDoc(ref, { [`players.${pid}`]: myEntry });
+
     const updatedPlayers = {
       ...(data.players || {}),
-      [pid]: { name: myPlayerName(), score: data.players?.[pid]?.score || 0 }
+      [pid]: myEntry
     };
-    await updateDoc(ref, { players: updatedPlayers });
 
     battleSession = {
       roomCode: code,
       isHost: data.hostId === pid,
       localOnly: false,
+      format: data.format || "ja-en",
+      showFirstChar: data.showFirstChar !== false,
+      minNo: data.minNo || 1,
+      maxNo: data.maxNo || 100,
+      count: data.count || (data.questions?.length || 10),
       questions: data.questions || [],
       currentIndex: 0,
       answeredCurrent: false,
@@ -2583,9 +2948,13 @@ async function joinBattleRoomAction() {
       players: updatedPlayers
     };
 
-    showBattleWaitingRoom(data.minNo || 1, data.maxNo || 100, data.count || 10);
+    showBattleWaitingRoom();
     subscribeBattleRoom(code);
-  } catch (_) {
+    if (data.status === "playing") {
+      beginBattlePlayLoop();
+    }
+  } catch (err) {
+    console.warn("Join room error:", err);
     showToast("ルーム参加に失敗しました");
   }
 }
@@ -2598,7 +2967,16 @@ function subscribeBattleRoom(code) {
     const data = snap.data();
     battleSession.players = data.players || battleSession.players;
     battleSession.questions = data.questions || battleSession.questions;
-    renderWaitingPlayers();
+    if (data.format) battleSession.format = data.format;
+    if (data.showFirstChar !== undefined) battleSession.showFirstChar = Boolean(data.showFirstChar);
+    if (data.minNo) battleSession.minNo = data.minNo;
+    if (data.maxNo) battleSession.maxNo = data.maxNo;
+    if (data.count) battleSession.count = data.count;
+
+    if (!$("#battleWaitingRoom")?.classList.contains("hidden")) {
+      updateBattleWaitingMeta();
+      renderWaitingPlayers();
+    }
     renderBattleScoreboard();
 
     if (data.status === "playing" && $("#battlePlayStage")?.classList.contains("hidden") && $("#battleResultBox")?.classList.contains("hidden")) {
@@ -2607,20 +2985,28 @@ function subscribeBattleRoom(code) {
     if (!$("#battleResultBox")?.classList.contains("hidden")) {
       renderBattleResults();
     }
+  }, (err) => {
+    console.warn("Battle snapshot error:", err);
   });
 }
 
-function showBattleWaitingRoom(minNo, maxNo, count) {
+function updateBattleWaitingMeta() {
+  const metaEl = $("#battleRoomMeta");
+  if (!metaEl) return;
+  const fmtLabel = BATTLE_FORMAT_LABELS[battleSession.format] || "日本語 → 英語";
+  const firstHintLabel = battleSession.showFirstChar ? "1文字目あり" : "1文字目なし";
+  const modeNote = battleSession.localOnly ? " ／ 一人練習" : "";
+  metaEl.textContent = `範囲 No.${battleSession.minNo}〜${battleSession.maxNo} ／ ${battleSession.count}問 ／ ${fmtLabel}（${firstHintLabel}）${modeNote}`;
+}
+
+function showBattleWaitingRoom() {
   $("#battleLobby")?.classList.add("hidden");
   $("#battlePlayStage")?.classList.add("hidden");
   $("#battleResultBox")?.classList.add("hidden");
   $("#battleWaitingRoom")?.classList.remove("hidden");
 
   if ($("#battleRoomCodeDisplay")) $("#battleRoomCodeDisplay").textContent = battleSession.roomCode;
-  if ($("#battleRoomMeta")) {
-    const modeNote = battleSession.localOnly ? "（一人練習モード）" : "";
-    $("#battleRoomMeta").textContent = `範囲 No.${minNo}〜${maxNo} ／ ${count}問 ／ 日本語 → 英語スペル ${modeNote}`;
-  }
+  updateBattleWaitingMeta();
 
   $("#btnStartBattleMatch")?.classList.toggle("hidden", !battleSession.isHost);
   $("#battleWaitHint")?.classList.toggle("hidden", battleSession.isHost);
@@ -2687,9 +3073,9 @@ function renderBattleQuestion() {
     return;
   }
 
-  // 旧ルームデータ互換フォールバック
-  const fallbackSpec = (!q.firstChar || !q.accepted) ? buildTypingSpecForWord(q.answerWord || q.prompt || "") : null;
-  battleSpellFirstChar = q.firstChar || fallbackSpec?.firstChar || "";
+  const useFirstChar = q.showFirstChar !== undefined ? Boolean(q.showFirstChar) : Boolean(battleSession.showFirstChar);
+  const fallbackSpec = !q.accepted ? buildTypingSpecForWord(q.answerWord || "", useFirstChar) : null;
+  battleSpellFirstChar = useFirstChar ? (q.firstChar || q.initialChar || fallbackSpec?.firstChar || "") : "";
   battleSpellAccepted = q.accepted || fallbackSpec?.accepted || [];
   battleSpellDisplayAns = q.answerWord || "";
   battleSpellTypedRest = "";
@@ -2705,7 +3091,23 @@ function renderBattleQuestion() {
     posEl.textContent = q.pos || "";
     posEl.classList.toggle("hidden", !q.pos);
   }
-  if ($("#battlePrompt")) $("#battlePrompt").textContent = q.prompt;
+
+  const promptEl = $("#battlePrompt");
+  if (promptEl) {
+    if (q.qType === "example" && String(q.prompt || "").includes("[[blank]]")) {
+      const blankDisplay = battleSpellFirstChar ? `${escapeHtml(battleSpellFirstChar)}…` : "（　　）";
+      promptEl.innerHTML = escapeHtml(q.prompt).replace("[[blank]]", `<span class="cloze-blank">${blankDisplay}</span>`);
+    } else {
+      promptEl.textContent = q.prompt || "";
+    }
+  }
+
+  const subNoteEl = $("#battleSubNote");
+  if (subNoteEl) {
+    subNoteEl.textContent = q.subNote || "";
+    subNoteEl.classList.toggle("hidden", !q.subNote);
+  }
+
   if ($("#battleTimerText")) $("#battleTimerText").textContent = "15秒";
   if ($("#battleTimerBar")) $("#battleTimerBar").style.width = "100%";
 
@@ -2754,19 +3156,27 @@ async function submitBattleSpelling(timedOut = false) {
   const pid = myPlayerId();
   let bonus = 0;
 
+  const prev = battleSession.players[pid]?.score || 0;
   if (isCorrect) {
     bonus = 10 + Math.max(0, battleSession.timeLeft);
-    const prev = battleSession.players[pid]?.score || 0;
-    battleSession.players[pid] = { name: myPlayerName(), score: prev + bonus };
+  }
+  const nextScore = prev + bonus;
+  const nextProgress = battleSession.currentIndex + 1;
+  battleSession.players[pid] = {
+    name: myPlayerName(),
+    score: nextScore,
+    progress: nextProgress,
+    finished: nextProgress >= battleSession.questions.length
+  };
 
-    if (!battleSession.localOnly && firebaseReady && db) {
-      try {
-        await updateDoc(doc(db, "battleRooms", battleSession.roomCode), {
-          [`players.${pid}.score`]: prev + bonus,
-          [`players.${pid}.name`]: myPlayerName()
-        });
-      } catch (_) {}
-    }
+  if (!battleSession.localOnly && firebaseReady && db) {
+    try {
+      await updateDoc(doc(db, "battleRooms", battleSession.roomCode), {
+        [`players.${pid}.score`]: nextScore,
+        [`players.${pid}.name`]: myPlayerName(),
+        [`players.${pid}.progress`]: nextProgress
+      });
+    } catch (_) {}
   }
 
   renderBattleSpellBox(isCorrect);
@@ -2796,12 +3206,24 @@ function advanceBattleQuestion() {
   }
 }
 
-function finishBattleMatch() {
+async function finishBattleMatch() {
   clearInterval(battleTimerId);
   setStudyLockMode(false);
   updateBackButtonVisibility();
   $("#battlePlayStage")?.classList.add("hidden");
   $("#battleResultBox")?.classList.remove("hidden");
+
+  const pid = myPlayerId();
+  if (battleSession.players[pid]) {
+    battleSession.players[pid].finished = true;
+  }
+  if (!battleSession.localOnly && firebaseReady && db && battleSession.roomCode) {
+    try {
+      const updates = { [`players.${pid}.finished`]: true };
+      if (battleSession.isHost) updates.status = "finished";
+      await updateDoc(doc(db, "battleRooms", battleSession.roomCode), updates);
+    } catch (_) {}
+  }
   renderBattleResults();
 }
 
@@ -2809,18 +3231,39 @@ function renderBattleResults() {
   const listEl = $("#battleResultList");
   if (!listEl) return;
   const sorted = Object.values(battleSession.players || {}).sort((a, b) => (b.score || 0) - (a.score || 0));
-  listEl.innerHTML = sorted.map((p, i) => `
-    <div class="battle-player-row">
-      <span><strong style="margin-right:6px;">${i + 1}位</strong>${escapeHtml(p.name)}</span>
-      <strong>${p.score || 0} pt</strong>
-    </div>
-  `).join("");
+  listEl.innerHTML = sorted.map((p, i) => {
+    const progNote = p.finished === false && p.progress !== undefined
+      ? ` <span class="sub-label">（解答中 ${p.progress}/${battleSession.questions.length}）</span>`
+      : "";
+    return `
+      <div class="battle-player-row">
+        <span><strong style="margin-right:6px;">${i + 1}位</strong>${escapeHtml(p.name)}${progNote}</span>
+        <strong>${p.score || 0} pt</strong>
+      </div>
+    `;
+  }).join("");
 }
 
 function leaveBattleRoom() {
+  const wasWaiting = !$("#battleWaitingRoom")?.classList.contains("hidden");
+  const prevCode = battleSession.roomCode;
+  const wasLocal = battleSession.localOnly;
+  const wasHost = battleSession.isHost;
+
   clearInterval(battleTimerId);
   setStudyLockMode(false);
   if (battleRoomUnsub) { battleRoomUnsub(); battleRoomUnsub = null; }
+
+  if (wasWaiting && !wasLocal && prevCode && firebaseReady && db) {
+    const pid = myPlayerId();
+    if (wasHost) {
+      updateDoc(doc(db, "battleRooms", prevCode), { status: "closed" }).catch(() => {});
+    } else if (deleteField) {
+      updateDoc(doc(db, "battleRooms", prevCode), { [`players.${pid}`]: deleteField() }).catch(() => {});
+    }
+  }
+  battleSession.roomCode = "";
+
   $("#battleWaitingRoom")?.classList.add("hidden");
   $("#battlePlayStage")?.classList.add("hidden");
   $("#battleResultBox")?.classList.add("hidden");
@@ -3170,30 +3613,69 @@ function renderAll() {
   if (activeTab === "settings") renderSettingsView();
 }
 
+function hasReturningLocalSession() {
+  const hasLevels = state.levels && Object.keys(state.levels).length > 0;
+  return Boolean(
+    localStorage.getItem(STORAGE_KEYS.GUEST_MODE) === "1" ||
+    state.ownerUid ||
+    state.loginId ||
+    state.nickname ||
+    hasLevels
+  );
+}
+
+function updateAuthGateOnlineState() {
+  const online = navigator.onLine !== false;
+  const loginBtn = $("#btnGateLogin");
+  const signupBtn = $("#btnGateSignup");
+  const resetBtn = $("#btnGateResetPw");
+  const guestBtn = $("#btnGateGuest");
+  const uInp = $("#gateUsernameInput");
+  const pInp = $("#gatePasswordInput");
+  const rInp = $("#gateRecoveryEmailInput");
+  const offlineBanner = $("#authOfflineBanner");
+  const errEl = $("#authGateError");
+
+  if (loginBtn) loginBtn.disabled = !online;
+  if (signupBtn) signupBtn.disabled = !online;
+  if (resetBtn) resetBtn.disabled = !online;
+  if (uInp) uInp.disabled = !online;
+  if (pInp) pInp.disabled = !online;
+  if (rInp) rInp.disabled = !online;
+
+  if (guestBtn) {
+    guestBtn.disabled = false;
+    guestBtn.classList.toggle("primary-btn", !online);
+    guestBtn.classList.toggle("sub-btn", online);
+  }
+  if (offlineBanner) {
+    offlineBanner.classList.toggle("hidden", online);
+  }
+  if (!online && errEl) {
+    errEl.textContent = "";
+  }
+}
+
 /* =========================================================
    イベントリスナー登録
    ========================================================= */
 function bindEvents() {
-  // スプラッシュ開始ボタン
+  // スプラッシュ開始ボタン（フォールバック用）
   $("#btnSplashStart")?.addEventListener("click", () => {
     const splash = $("#splashScreen");
     if (splash) {
       splash.classList.add("fade-out");
-      setTimeout(() => splash.classList.add("hidden"), 280);
-    }
-    const isGuest = localStorage.getItem(STORAGE_KEYS.GUEST_MODE) === "1";
-    if (!currentUser && firebaseReady && !isGuest) {
-      $("#authGate")?.classList.remove("hidden");
-    } else if (currentUser) {
-      maybePromptRecoveryEmail();
+      setTimeout(() => splash.classList.add("hidden"), 250);
     }
   });
 
-  // 認証ゲート
+  // 認証ゲート（オフライン／ゲスト開始ボタン）
   $("#btnGateGuest")?.addEventListener("click", () => {
     try { localStorage.setItem(STORAGE_KEYS.GUEST_MODE, "1"); } catch (_) {}
+    saveLocalState(false);
     $("#authGate")?.classList.add("hidden");
-    showToast("ゲスト利用で開始しました");
+    renderAll();
+    showToast("オフライン・ゲストモードで開始しました");
   });
 
   $("#btnGateLogin")?.addEventListener("click", async () => {
@@ -3204,11 +3686,16 @@ function bindEvents() {
       if (errEl) errEl.textContent = "ログインIDと6文字以上のパスワードを入力してください。";
       return;
     }
-    if (!firebaseReady || !auth) {
-      if (errEl) errEl.textContent = "現在オフラインのためログインできません。下のオフライン学習をご利用ください。";
+    if (navigator.onLine === false) {
+      updateAuthGateOnlineState();
       return;
     }
     if (errEl) errEl.textContent = "サインイン中...";
+    const ready = await startBackgroundFirebaseSync();
+    if (!ready || !auth) {
+      if (errEl) errEl.textContent = "現在通信できないためログインできません。下のオフラインモードをご利用ください。";
+      return;
+    }
     const emails = await resolveLoginEmail(rawId);
     let lastErr = null;
     for (const email of emails) {
@@ -3217,6 +3704,7 @@ function bindEvents() {
         if (!rawId.includes("@")) state.loginId = rawId;
         saveLocalState(true);
         if (errEl) errEl.textContent = "";
+        $("#authGate")?.classList.add("hidden");
         showToast("ログインしました");
         return;
       } catch (e) {
@@ -3243,8 +3731,15 @@ function bindEvents() {
       if (errEl) errEl.textContent = "パスワードは6文字以上で入力してください。";
       return;
     }
-    if (!firebaseReady || !auth) {
-      if (errEl) errEl.textContent = "現在オフラインのため新規登録できません。";
+    if (navigator.onLine === false) {
+      updateAuthGateOnlineState();
+      return;
+    }
+
+    if (errEl) errEl.textContent = "アカウント作成中...";
+    const ready = await startBackgroundFirebaseSync();
+    if (!ready || !auth) {
+      if (errEl) errEl.textContent = "現在通信できないため新規登録できません。下のオフラインモードをご利用ください。";
       return;
     }
 
@@ -3252,8 +3747,8 @@ function bindEvents() {
       ? recMail
       : `${rawId.toLowerCase()}@${SYNTHETIC_EMAIL_DOMAINS[0]}`;
 
-    if (errEl) errEl.textContent = "アカウント作成中...";
     try {
+      justSignedUpInteractive = true;
       await createUserWithEmailAndPassword(auth, authEmail, pw);
       state.loginId = rawId;
       state.recoveryEmail = recMail || "";
@@ -3263,6 +3758,7 @@ function bindEvents() {
       $("#authGate")?.classList.add("hidden");
       $("#usernameModal")?.classList.remove("hidden");
     } catch (e) {
+      justSignedUpInteractive = false;
       if (errEl) {
         errEl.textContent = e.code === "auth/email-already-in-use"
           ? "このログインIDまたはメールアドレスは既に使用されています。"
@@ -3278,7 +3774,12 @@ function bindEvents() {
       if (errEl) errEl.textContent = "登録済みの再設定用メールアドレスを入力してから押してください。";
       return;
     }
-    if (!firebaseReady || !auth) return;
+    if (navigator.onLine === false) {
+      updateAuthGateOnlineState();
+      return;
+    }
+    const ready = await startBackgroundFirebaseSync();
+    if (!ready || !auth) return;
     try {
       await sendPasswordResetEmail(auth, raw);
       if (errEl) errEl.textContent = "";
@@ -3474,24 +3975,32 @@ function bindEvents() {
     const speeds = [0.8, 1.0, 1.2];
     const curIdx = speeds.findIndex((s) => Math.abs(s - listenState.speed) < 0.05);
     listenState.speed = speeds[(curIdx + 1) % speeds.length];
-    renderListenStep(false);
+    const speedBtn = $("#btnListenSpeedQuick");
+    if (speedBtn) speedBtn.textContent = `速度: ${listenState.speed.toFixed(1)}x`;
   });
   $("#btnListenLoopQuick")?.addEventListener("click", () => {
     listenState.loop = !listenState.loop;
-    renderListenStep(false);
+    const loopBtn = $("#btnListenLoopQuick");
+    if (loopBtn) loopBtn.textContent = `リピート: ${listenState.loop ? "ON" : "OFF"}`;
   });
   $$("[data-listen-rate]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const item = listenState.queue[listenState.index];
       if (!item) return;
-      setWordLevel(item.no, Number(btn.dataset.listenRate));
-      renderListenStep(false);
+      const newLv = Number(btn.dataset.listenRate);
+      setWordLevel(item.no, newLv);
+      // 再生中タイマーや音声は一切止めず、選択表示のみ更新してそのまま自動で次へ進める
+      $$("[data-listen-rate]").forEach((b) => {
+        b.classList.toggle("selected", Number(b.dataset.listenRate) === newLv);
+      });
     });
   });
 
   // 学習画面モード選択・マルチ選択チップ・開始
   $("#studyMin")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
   $("#studyMax")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
+  $("#quizFormatSelect")?.addEventListener("change", updateQuizFirstCharVisibility);
   $$("[data-pick-mode]").forEach((card) => {
     card.addEventListener("click", () => openStudySetupForMode(card.dataset.pickMode));
   });
@@ -3510,7 +4019,7 @@ function bindEvents() {
   $("#qSpellNextBtn")?.addEventListener("click", advanceSpellQuestion);
   $("#qSpellAudio")?.addEventListener("click", () => {
     const item = quizQueue[quizIndex];
-    if (item) speakEnglish(item.word);
+    if (item) speakEnglish(spellAudioTargetWord || item.word);
   });
 
   window.addEventListener("keydown", (e) => {
@@ -3659,7 +4168,7 @@ function bindEvents() {
   $("#qSingleNextBtn")?.addEventListener("click", advanceSingleQuizQuestion);
 
   $("#qResultRetestBtn")?.addEventListener("click", () => {
-    const wrong = shuffleArray(quizQueue.filter((item) => !quizAnswers[item.no]?.correct));
+    const wrong = shuffleArray(quizQueue.filter((item) => !quizAnswers[getQuizItemKey(item)]?.correct));
     if (!wrong.length) return;
     quizQueue = wrong;
     quizIndex = 0;
@@ -3674,12 +4183,12 @@ function bindEvents() {
   $("#btnExitPaper")?.addEventListener("click", exitStudyStages);
   $("#btnPaperRevealAnswers")?.addEventListener("click", revealPaperAnswers);
   $("#btnPaperAllCorrect")?.addEventListener("click", () => {
-    paperQueue.forEach((item) => { paperMarks[item.no] = true; });
+    paperQueue.forEach((item) => { paperMarks[getPaperItemKey(item)] = true; });
     renderPaperSheet();
   });
   $("#btnPaperFinishScore")?.addEventListener("click", finishPaperScoring);
   $("#btnPaperRetestWrong")?.addEventListener("click", () => {
-    const wrong = shuffleArray(paperQueue.filter((item) => paperMarks[item.no] !== true));
+    const wrong = shuffleArray(paperQueue.filter((item) => paperMarks[getPaperItemKey(item)] !== true));
     if (!wrong.length) return;
     paperQueue = wrong;
     paperConfiguredTimerSec = Number($("#paperTimerSelect")?.value || 0);
@@ -3690,6 +4199,28 @@ function bindEvents() {
   // フレンドタブ（選択カード → 対戦／フレンド一覧）
   $$("[data-pick-battle]").forEach((card) => {
     card.addEventListener("click", () => openBattleSubPanel(card.dataset.pickBattle));
+  });
+
+  $("#battleMin")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
+  $("#battleMax")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
+  $("#battleFormat")?.addEventListener("change", () => {
+    const fmt = $("#battleFormat")?.value || "ja-en";
+    const minEl = $("#battleMin");
+    const maxEl = $("#battleMax");
+    if (minEl && maxEl && !minEl.dataset.touched && !maxEl.dataset.touched) {
+      if (fmt === "example") {
+        minEl.value = "301";
+        maxEl.value = "400";
+      } else {
+        minEl.value = String(prefs.goalMin || 1);
+        maxEl.value = String(prefs.goalMax || 100);
+      }
+    }
+  });
+  $("#btnBattleOpenAuth")?.addEventListener("click", () => {
+    updateAuthGateOnlineState();
+    if ($("#authGateError")) $("#authGateError").textContent = "";
+    $("#authGate")?.classList.remove("hidden");
   });
 
   $("#btnCreateRoom")?.addEventListener("click", createBattleRoomAction);
@@ -3749,6 +4280,11 @@ function bindEvents() {
 
   // 設定画面＆ネットワーク復帰時の自動同期
   $("#btnManualSync")?.addEventListener("click", async () => {
+    if (navigator.onLine === false) {
+      showToast("オフラインのため同期できません");
+      return;
+    }
+    await startBackgroundFirebaseSync();
     if (!firebaseReady || !currentUser) {
       showToast("クラウド同期にはログインが必要です");
       return;
@@ -3757,11 +4293,16 @@ function bindEvents() {
     showToast(ok ? "クラウドと双方向同期しました" : "同期に失敗しました（通信状態をご確認ください）");
   });
 
-  window.addEventListener("online", () => {
+  window.addEventListener("online", async () => {
+    updateAuthGateOnlineState();
+    await startBackgroundFirebaseSync();
     if (firebaseReady && currentUser) syncBidirectionalNow();
   });
+  window.addEventListener("offline", () => {
+    updateAuthGateOnlineState();
+  });
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && firebaseReady && currentUser) {
+    if (document.visibilityState === "visible" && navigator.onLine !== false && firebaseReady && currentUser) {
       syncBidirectionalNow();
     }
   });
@@ -3796,12 +4337,14 @@ function bindEvents() {
       currentUser = null;
       state = structuredClone(DEFAULT_STATE);
       state.friendId = ensureFriendId("");
+      try { localStorage.removeItem(STORAGE_KEYS.GUEST_MODE); } catch (_) {}
       saveLocalState(false);
       updateSyncUi();
       renderAll();
       showToast("ログアウトしました");
     } else {
-      $("#authGateError").textContent = "";
+      updateAuthGateOnlineState();
+      if ($("#authGateError")) $("#authGateError").textContent = "";
       $("#authGate")?.classList.remove("hidden");
     }
   });
@@ -3835,19 +4378,39 @@ function bindEvents() {
     applyPrefsToDom();
   });
 
-  // CSV手動読込
+  // CSV手動読込（単語・例文・派生語をヘッダーで自動判別）
   $("#csvFileInput")?.addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const text = await file.text();
       const rows = parseCsvRows(text);
+      if (!rows.length) {
+        showToast("有効なCSVデータが見つかりませんでした");
+        return;
+      }
+      const sample = rows[0] || {};
+      if ("派生語" in sample || "derivative" in sample) {
+        buildDerivativesMap(rows);
+        try { localStorage.setItem(STORAGE_KEYS.CACHE_DERIVATIVES, text); } catch (_) {}
+        renderAll();
+        showToast(`派生語データ（${rows.length} 件）を読み込みました`);
+        return;
+      }
+      if ("例文" in sample || "example_en" in sample) {
+        buildExamplesMap(rows);
+        try { localStorage.setItem(STORAGE_KEYS.CACHE_EXAMPLES, text); } catch (_) {}
+        renderAll();
+        showToast(`例文データ（${rows.length} 件）を読み込みました`);
+        return;
+      }
       const parsed = normalizeWords(rows);
       if (!parsed.length) {
         showToast("有効な単語データが見つかりませんでした");
         return;
       }
       wordsData = parsed;
+      syncMaxRangeInputs();
       try { localStorage.setItem(STORAGE_KEYS.CACHE_WORDS, text); } catch (_) {}
       renderAll();
       showToast(`${parsed.length} 語のデータを読み込みました`);
@@ -3883,22 +4446,56 @@ function bindEvents() {
 }
 
 /* =========================================================
-   初期化エントリーポイント
+   初期化エントリーポイント（0ms即起動 ＆ 非同期バックグラウンド同期）
    ========================================================= */
-async function initApp() {
+function dismissSplashQuick(delayMs = 0) {
+  const splash = $("#splashScreen");
+  if (!splash || splash.classList.contains("hidden")) return;
+  if (delayMs <= 0) {
+    splash.classList.add("hidden");
+    return;
+  }
+  setTimeout(() => {
+    splash.classList.add("fade-out");
+    setTimeout(() => splash.classList.add("hidden"), 180);
+  }, delayMs);
+}
+
+function initApp() {
+  // 1. アプリ起動（0ms）：localStorage から設定・ユーザー情報・学習データ（levels/ratings）・キャッシュ済みCSVを同期読み込み
   loadLocalPrefs();
   loadLocalState();
-  bindEvents();
+  loadCachedVocabularySync();
 
-  await loadVocabularyData();
-  await initFirebaseIfAvailable();
-  setupAuthListeners();
+  if ($("#quizShowFirstSelect")) {
+    $("#quizShowFirstSelect").value = prefs.showFirstChar === false ? "hide" : "show";
+  }
+
+  bindEvents();
+  updateAuthGateOnlineState();
   renderAll();
 
-  const statusEl = $("#splashStatus");
-  if (statusEl) statusEl.textContent = `準備完了（全 ${wordsData.length.toLocaleString()} 語）`;
-  $("#splashSpinner")?.classList.add("hidden");
-  $("#btnSplashStart")?.classList.remove("hidden");
+  // 2. 起動時分岐：通信完了を一切待たずに即座にホーム画面または初回ゲートを表示
+  const isReturning = hasReturningLocalSession();
+  if (isReturning) {
+    $("#authGate")?.classList.add("hidden");
+    dismissSplashQuick(wordsData.length > 0 ? 0 : 120);
+  } else {
+    dismissSplashQuick(0);
+    $("#authGate")?.classList.remove("hidden");
+  }
+
+  // 3. ローカルCSVの最新化（非同期・UI非ブロック）
+  loadVocabularyData()
+    .then(() => {
+      renderAll();
+    })
+    .catch(() => {});
+
+  // 4. バックグラウンド同期（オンライン時のみ・失敗してもエラー画面を出さず静かに終了）
+  if (navigator.onLine !== false) {
+    startBackgroundFirebaseSync();
+  }
 }
 
 if ("serviceWorker" in navigator) {
@@ -3909,4 +4506,8 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-document.addEventListener("DOMContentLoaded", initApp);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initApp);
+} else {
+  initApp();
+}
