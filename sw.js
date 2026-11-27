@@ -2,7 +2,7 @@
 // HONE - Service Worker (GitHub Pages Subpath & Redirect-Safe)
 // =========================================================
 
-const CACHE_NAME = 'hone-cache-v46';
+const CACHE_NAME = 'hone-cache-v47';
 
 const ASSETS_TO_CACHE = [
   './index.html',

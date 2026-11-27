@@ -3660,8 +3660,9 @@ function updateAuthGateOnlineState() {
    イベントリスナー登録
    ========================================================= */
 function bindEvents() {
-  // スプラッシュ開始（ボタンまたは画面タップで即座に遷移）
+  // スプラッシュ開始（スピナー演出完了後にボタンまたは画面タップで即座に遷移）
   const handleSplashEnter = () => {
+    if (!splashReadyToEnter) return;
     const splash = $("#splashScreen");
     if (!splash || splash.classList.contains("hidden") || splash.classList.contains("fade-out")) return;
     splash.classList.add("fade-out");
@@ -4459,7 +4460,10 @@ function bindEvents() {
 /* =========================================================
    初期化エントリーポイント（0ms即起動 ＆ 非同期バックグラウンド同期）
    ========================================================= */
+let splashReadyToEnter = false;
+
 function updateSplashReadyLabel() {
+  if (!splashReadyToEnter) return;
   const statusEl = $("#splashStatus");
   if (statusEl) {
     statusEl.textContent = wordsData.length > 0
@@ -4484,9 +4488,12 @@ function initApp() {
   updateAuthGateOnlineState();
   renderAll();
 
-  // 2. ネットワーク通信を一切待たず、0msで「タップしてはじめる」画面を即時表示
-  updateSplashReadyLabel();
+  // 2. ネットワーク通信は一切待たず、0.35秒だけスピナー演出を見せてから「タップしてはじめる」を表示
   $("#authGate")?.classList.add("hidden");
+  setTimeout(() => {
+    splashReadyToEnter = true;
+    updateSplashReadyLabel();
+  }, 350);
 
   // 3. ローカルCSVの最新化（非同期・UI非ブロック）
   loadVocabularyData()
