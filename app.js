@@ -3660,14 +3660,25 @@ function updateAuthGateOnlineState() {
    イベントリスナー登録
    ========================================================= */
 function bindEvents() {
-  // スプラッシュ開始ボタン（フォールバック用）
-  $("#btnSplashStart")?.addEventListener("click", () => {
+  // スプラッシュ開始（ボタンまたは画面タップで即座に遷移）
+  const handleSplashEnter = () => {
     const splash = $("#splashScreen");
-    if (splash) {
-      splash.classList.add("fade-out");
-      setTimeout(() => splash.classList.add("hidden"), 250);
+    if (!splash || splash.classList.contains("hidden") || splash.classList.contains("fade-out")) return;
+    splash.classList.add("fade-out");
+    setTimeout(() => splash.classList.add("hidden"), 240);
+
+    if (!currentUser && !hasReturningLocalSession()) {
+      updateAuthGateOnlineState();
+      $("#authGate")?.classList.remove("hidden");
+    } else {
+      $("#authGate")?.classList.add("hidden");
     }
+  };
+  $("#btnSplashStart")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    handleSplashEnter();
   });
+  $("#splashScreen")?.addEventListener("click", handleSplashEnter);
 
   // 認証ゲート（オフライン／ゲスト開始ボタン）
   $("#btnGateGuest")?.addEventListener("click", () => {
@@ -4448,17 +4459,15 @@ function bindEvents() {
 /* =========================================================
    初期化エントリーポイント（0ms即起動 ＆ 非同期バックグラウンド同期）
    ========================================================= */
-function dismissSplashQuick(delayMs = 0) {
-  const splash = $("#splashScreen");
-  if (!splash || splash.classList.contains("hidden")) return;
-  if (delayMs <= 0) {
-    splash.classList.add("hidden");
-    return;
+function updateSplashReadyLabel() {
+  const statusEl = $("#splashStatus");
+  if (statusEl) {
+    statusEl.textContent = wordsData.length > 0
+      ? `準備完了（全 ${wordsData.length.toLocaleString()} 語）`
+      : "準備完了";
   }
-  setTimeout(() => {
-    splash.classList.add("fade-out");
-    setTimeout(() => splash.classList.add("hidden"), 180);
-  }, delayMs);
+  $("#splashSpinner")?.classList.add("hidden");
+  $("#btnSplashStart")?.classList.remove("hidden");
 }
 
 function initApp() {
@@ -4475,19 +4484,14 @@ function initApp() {
   updateAuthGateOnlineState();
   renderAll();
 
-  // 2. 起動時分岐：通信完了を一切待たずに即座にホーム画面または初回ゲートを表示
-  const isReturning = hasReturningLocalSession();
-  if (isReturning) {
-    $("#authGate")?.classList.add("hidden");
-    dismissSplashQuick(wordsData.length > 0 ? 0 : 120);
-  } else {
-    dismissSplashQuick(0);
-    $("#authGate")?.classList.remove("hidden");
-  }
+  // 2. ネットワーク通信を一切待たず、0msで「タップしてはじめる」画面を即時表示
+  updateSplashReadyLabel();
+  $("#authGate")?.classList.add("hidden");
 
   // 3. ローカルCSVの最新化（非同期・UI非ブロック）
   loadVocabularyData()
     .then(() => {
+      updateSplashReadyLabel();
       renderAll();
     })
     .catch(() => {});

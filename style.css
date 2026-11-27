@@ -1110,6 +1110,8 @@ html, body {
 .battle-stack { display: flex; flex-direction: column; gap: 12px; }
 .inline-edit-row,
 .battle-join-row { display: flex; gap: 8px; }
+.inline-edit-row > .primary-btn,
+.inline-edit-row > .sub-btn { flex-shrink: 0; white-space: nowrap; }
 .room-code-box {
   display: flex;
   align-items: center;
