@@ -39,7 +39,7 @@ const STORAGE_KEYS = {
   LEGACY_PREFS: "hone_prefs_v1",
   CACHE_WORDS: "hone_words_cache_v2",
   CACHE_EXAMPLES: "hone_examples_cache_v3",
-  CACHE_DERIVATIVES: "hone_derivatives_cache_v2",
+  CACHE_DERIVATIVES: "hone_derivatives_cache_v3",
   GUEST_MODE: "hone_guest_mode_v1",
   DISMISS_RECOVERY: "hone_dismiss_recovery_v1"
 };
@@ -1883,7 +1883,7 @@ function startSelectedStudyMode() {
     if (isExampleMode) {
       showToast("この範囲に例文データがありません（No.296〜1000 に収録）");
     } else if (isDerivativeMode) {
-      showToast("この範囲に日本語訳付きの派生語データがありません（No.296〜999 に収録）");
+      showToast("この範囲に派生語データがありません");
     } else {
       showToast("条件に一致する単語がありません");
     }
@@ -2867,7 +2867,7 @@ async function createBattleRoomAction() {
     if (format === "example") {
       showToast("この範囲に例文データがありません（No.296〜1000 に収録）");
     } else if (format === "derivative") {
-      showToast("この範囲に日本語訳付きの派生語データがありません（No.296〜999 に収録）");
+      showToast("この範囲に派生語データがありません");
     } else {
       showToast("選択した範囲に問題データがありません");
     }
@@ -4067,11 +4067,11 @@ function bindEvents() {
   $("#quizFormatSelect")?.addEventListener("change", () => {
     updateQuizFirstCharVisibility();
     const v = $("#quizFormatSelect")?.value || "";
-    adjustStudyRangeIfUntouched(v === "example-type" || v === "derivative-type");
+    adjustStudyRangeIfUntouched(v === "example-type");
   });
   $("#paperFormatSelect")?.addEventListener("change", () => {
     const v = $("#paperFormatSelect")?.value || "";
-    adjustStudyRangeIfUntouched(v === "example" || v === "derivative");
+    adjustStudyRangeIfUntouched(v === "example");
   });
   $$("[data-pick-mode]").forEach((card) => {
     card.addEventListener("click", () => openStudySetupForMode(card.dataset.pickMode));
@@ -4280,10 +4280,10 @@ function bindEvents() {
     const minEl = $("#battleMin");
     const maxEl = $("#battleMax");
     if (minEl && maxEl && !minEl.dataset.touched && !maxEl.dataset.touched) {
-      if ((fmt === "example" || fmt === "derivative") && Number(maxEl.value) < 296) {
+      if (fmt === "example" && Number(maxEl.value) < 296) {
         minEl.value = "296";
         maxEl.value = "400";
-      } else if (fmt === "ja-en") {
+      } else if (fmt !== "example") {
         minEl.value = String(prefs.goalMin || 1);
         maxEl.value = String(prefs.goalMax || 100);
       }
