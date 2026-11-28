@@ -1830,6 +1830,16 @@ function buildStudyCandidates() {
     const fFmt = $("#fcFormatSelect")?.value || "en-ja";
     if (fFmt === "example") {
       list = list.filter((w) => examplesMap.has(w.no));
+    } else if (fFmt === "deriv-en-ja" || fFmt === "deriv-ja-en") {
+      const expanded = [];
+      list.forEach((w) => {
+        (derivativesMap.get(w.no) || []).forEach((d, idx) => {
+          if (d.meaning) {
+            expanded.push({ ...w, _deriv: d, _qKey: `${w.no}_d${idx}` });
+          }
+        });
+      });
+      list = expanded;
     }
     if (order === "random") list = shuffleArray(list);
   } else if (currentStudyMode === "quiz") {
@@ -1873,11 +1883,13 @@ function buildStudyCandidates() {
 function startSelectedStudyMode() {
   const candidates = buildStudyCandidates();
   if (!candidates.length) {
+    const fcVal = $("#fcFormatSelect")?.value || "";
     const isExampleMode =
-      (currentStudyMode === "flashcard" && $("#fcFormatSelect")?.value === "example") ||
+      (currentStudyMode === "flashcard" && fcVal === "example") ||
       (currentStudyMode === "quiz" && $("#quizFormatSelect")?.value === "example-type") ||
       (currentStudyMode === "paper" && $("#paperFormatSelect")?.value === "example");
     const isDerivativeMode =
+      (currentStudyMode === "flashcard" && (fcVal === "deriv-en-ja" || fcVal === "deriv-ja-en")) ||
       (currentStudyMode === "quiz" && $("#quizFormatSelect")?.value === "derivative-type") ||
       (currentStudyMode === "paper" && $("#paperFormatSelect")?.value === "derivative");
     if (isExampleMode) {
@@ -1936,7 +1948,15 @@ function startSelectedStudyMode() {
   }
 }
 
-/* ---------- フラッシュカード（スワイプ・裏面確認必須・例文前後音声対応） ---------- */
+/* ---------- フラッシュカード（スワイプ・裏面確認必須・例文前後音声・派生語対応） ---------- */
+function cleanDerivativeSpeechWord(rawWord) {
+  let s = String(rawWord || "").trim();
+  for (let i = 0; i < 2; i++) {
+    s = s.replace(/\([^()]*[\s~〜～\u3000-\u9FFF\uFF00-\uFFEF][^()]*\)/g, " ").trim();
+  }
+  return s.replace(/[～〜~()]/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function buildExampleSpeechText(rawEn, omitBracketed = false) {
   let s = String(rawEn || "");
   if (omitBracketed) {
@@ -1951,6 +1971,9 @@ function buildExampleSpeechText(rawEn, omitBracketed = false) {
 
 function getFlashcardFrontAudioText(item) {
   if (!item) return "";
+  if ((fcFormat === "deriv-en-ja" || fcFormat === "deriv-ja-en") && item._deriv) {
+    return cleanDerivativeSpeechWord(item._deriv.word) || item.word;
+  }
   const ex = (examplesMap.get(item.no) || [])[0] || null;
   if (fcFormat === "example" && ex) {
     return buildExampleSpeechText(ex.rawEn, true);
@@ -1960,11 +1983,28 @@ function getFlashcardFrontAudioText(item) {
 
 function getFlashcardBackAudioText(item) {
   if (!item) return "";
+  if ((fcFormat === "deriv-en-ja" || fcFormat === "deriv-ja-en") && item._deriv) {
+    return cleanDerivativeSpeechWord(item._deriv.word) || item.word;
+  }
   const ex = (examplesMap.get(item.no) || [])[0] || null;
   if (fcFormat === "example" && ex) {
     return buildExampleSpeechText(ex.rawEn, false);
   }
   return item.word;
+}
+
+function renderFlashcardDerivRowsHtml(title, rows) {
+  if (!rows || !rows.length) return "";
+  return `
+    <span class="fc-deriv-title">${escapeHtml(title)}</span>
+    ${rows.map((r) => `
+      <div class="deriv-row">
+        ${r.pos ? `<span class="pos-badge">${escapeHtml(r.pos)}</span>` : ""}
+        <span class="deriv-word">${escapeHtml(r.word)}</span>
+        ${r.meaning ? `<span class="deriv-meaning">${escapeHtml(r.meaning)}</span>` : ""}
+      </div>
+    `).join("")}
+  `;
 }
 
 function renderFlashcard(allowAutoSpeak = false) {
@@ -1974,6 +2014,9 @@ function renderFlashcard(allowAutoSpeak = false) {
   const lv = Number(state.levels?.[item.no] || 0);
   const exList = examplesMap.get(item.no) || [];
   const ex = exList[0] || null;
+  const allDerivs = derivativesMap.get(item.no) || [];
+  const isDerivMode = fcFormat === "deriv-en-ja" || fcFormat === "deriv-ja-en";
+  const d = isDerivMode ? item._deriv : null;
 
   const counterEl = $("#fcCounter");
   const progEl = $("#fcProgressBar");
@@ -1986,49 +2029,102 @@ function renderFlashcard(allowAutoSpeak = false) {
   if ($("#fcNoBack")) $("#fcNoBack").textContent = `No. ${item.no}`;
 
   const wordFront = $("#fcWordFront");
+  const frontSub = $("#fcFrontSub");
   const hintFront = $("#fcHintFront");
   const frontAudioBtn = $("#fcFrontAudioBtn");
   if (frontAudioBtn) {
-    frontAudioBtn.classList.toggle("hidden", fcFormat === "ja-en");
+    frontAudioBtn.classList.toggle("hidden", fcFormat === "ja-en" || fcFormat === "deriv-ja-en");
   }
 
   if (wordFront) {
-    if (fcFormat === "ja-en") {
+    if (fcFormat === "deriv-en-ja" && d) {
+      wordFront.textContent = d.word;
+      wordFront.classList.remove("is-ja");
+      if (frontSub) {
+        frontSub.textContent = `${d.pos ? `[${d.pos}] ` : ""}見出し語: ${item.word}`;
+        frontSub.classList.remove("hidden");
+      }
+      if (hintFront) hintFront.textContent = "タップで裏面をめくる";
+    } else if (fcFormat === "deriv-ja-en" && d) {
+      wordFront.textContent = d.meaning;
+      wordFront.classList.add("is-ja");
+      if (frontSub) {
+        frontSub.textContent = `${d.pos ? `[${d.pos}] ` : ""}${formatDerivOriginLabel(d, item)}`;
+        frontSub.classList.remove("hidden");
+      }
+      if (hintFront) hintFront.textContent = "タップで裏面をめくる";
+    } else if (fcFormat === "ja-en") {
       wordFront.textContent = item.meanings.join(" ／ ");
       wordFront.classList.add("is-ja");
+      if (frontSub) { frontSub.textContent = ""; frontSub.classList.add("hidden"); }
       if (hintFront) hintFront.textContent = "タップで裏面をめくる";
     } else if (fcFormat === "example" && ex) {
       wordFront.innerHTML = formatExampleClozeHtml(ex.rawEn, item.word);
       wordFront.classList.add("is-ja");
+      if (frontSub) { frontSub.textContent = ""; frontSub.classList.add("hidden"); }
       if (hintFront) hintFront.textContent = "タップで裏面をめくる";
     } else {
       wordFront.textContent = item.word;
       wordFront.classList.remove("is-ja");
+      if (frontSub) { frontSub.textContent = ""; frontSub.classList.add("hidden"); }
       if (hintFront) hintFront.textContent = "タップで裏面をめくる";
     }
   }
 
-  if ($("#fcWordBack")) $("#fcWordBack").textContent = item.word;
-  if ($("#fcPhoneticBack")) $("#fcPhoneticBack").textContent = item.phonetic || "";
   const posBack = $("#fcPosBack");
-  if (posBack) {
-    posBack.textContent = item.pos || "";
-    posBack.classList.toggle("hidden", !item.pos);
-  }
-  if ($("#fcMeaningBack")) $("#fcMeaningBack").textContent = item.meanings.join(" ／ ");
   const noteBack = $("#fcNoteBack");
-  if (noteBack) {
-    noteBack.textContent = item.note || "";
-    noteBack.classList.toggle("hidden", !item.note);
-  }
   const exBack = $("#fcExampleBack");
-  if (exBack) {
-    if (ex) {
-      exBack.innerHTML = `${formatExampleHighlightedHtml(ex.rawEn)}${ex.ja ? `<br>${escapeHtml(ex.ja)}` : ""}`;
-      exBack.classList.remove("hidden");
-    } else {
-      exBack.innerHTML = "";
-      exBack.classList.add("hidden");
+  const derivBack = $("#fcDerivBack");
+
+  if (isDerivMode && d) {
+    if ($("#fcWordBack")) $("#fcWordBack").textContent = d.word;
+    if ($("#fcPhoneticBack")) $("#fcPhoneticBack").textContent = formatDerivOriginLabel(d, item);
+    if (posBack) {
+      posBack.textContent = d.pos || "";
+      posBack.classList.toggle("hidden", !d.pos);
+    }
+    if ($("#fcMeaningBack")) $("#fcMeaningBack").textContent = d.meaning;
+    if (noteBack) { noteBack.textContent = ""; noteBack.classList.add("hidden"); }
+    if (exBack) { exBack.innerHTML = ""; exBack.classList.add("hidden"); }
+    if (derivBack) {
+      const siblings = allDerivs.filter((x) => x.word !== d.word);
+      if (siblings.length) {
+        derivBack.innerHTML = renderFlashcardDerivRowsHtml("同じ見出し語の派生語・関連語", siblings);
+        derivBack.classList.remove("hidden");
+      } else {
+        derivBack.innerHTML = "";
+        derivBack.classList.add("hidden");
+      }
+    }
+  } else {
+    if ($("#fcWordBack")) $("#fcWordBack").textContent = item.word;
+    if ($("#fcPhoneticBack")) $("#fcPhoneticBack").textContent = item.phonetic || "";
+    if (posBack) {
+      posBack.textContent = item.pos || "";
+      posBack.classList.toggle("hidden", !item.pos);
+    }
+    if ($("#fcMeaningBack")) $("#fcMeaningBack").textContent = item.meanings.join(" ／ ");
+    if (noteBack) {
+      noteBack.textContent = item.note || "";
+      noteBack.classList.toggle("hidden", !item.note);
+    }
+    if (exBack) {
+      if (ex) {
+        exBack.innerHTML = `${formatExampleHighlightedHtml(ex.rawEn)}${ex.ja ? `<br>${escapeHtml(ex.ja)}` : ""}`;
+        exBack.classList.remove("hidden");
+      } else {
+        exBack.innerHTML = "";
+        exBack.classList.add("hidden");
+      }
+    }
+    if (derivBack) {
+      if (allDerivs.length) {
+        derivBack.innerHTML = renderFlashcardDerivRowsHtml("派生語・関連語", allDerivs);
+        derivBack.classList.remove("hidden");
+      } else {
+        derivBack.innerHTML = "";
+        derivBack.classList.add("hidden");
+      }
     }
   }
 
@@ -2050,6 +2146,8 @@ function renderFlashcard(allowAutoSpeak = false) {
     if (!fcFlipped) {
       if (fcFormat === "en-ja") {
         speakEnglish(item.word);
+      } else if (fcFormat === "deriv-en-ja" && d) {
+        speakEnglish(cleanDerivativeSpeechWord(d.word) || item.word);
       } else if (fcFormat === "example" && ex) {
         speakEnglish(buildExampleSpeechText(ex.rawEn, true));
       }
@@ -2058,6 +2156,8 @@ function renderFlashcard(allowAutoSpeak = false) {
         speakEnglish(buildExampleSpeechText(ex.rawEn, false));
       } else if (fcFormat === "ja-en") {
         speakEnglish(item.word);
+      } else if (fcFormat === "deriv-ja-en" && d) {
+        speakEnglish(cleanDerivativeSpeechWord(d.word) || item.word);
       }
     }
   }

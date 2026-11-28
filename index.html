@@ -461,6 +461,8 @@
               <option value="en-ja" selected>英語 → 日本語</option>
               <option value="ja-en">日本語 → 英語</option>
               <option value="example">例文の穴埋め</option>
+              <option value="deriv-en-ja">派生語（英語 → 日本語）</option>
+              <option value="deriv-ja-en">派生語（日本語 → 英語）</option>
             </select>
           </div>
         </div>
@@ -567,6 +569,7 @@
               </button>
             </div>
             <div id="fcWordFront" class="fc-word">achieve</div>
+            <div id="fcFrontSub" class="fc-front-sub hidden"></div>
             <p id="fcHintFront" class="fc-hint">タップで意味を表示</p>
           </div>
 
@@ -589,6 +592,7 @@
             </div>
             <p id="fcNoteBack" class="fc-note"></p>
             <div id="fcExampleBack" class="fc-example"></div>
+            <div id="fcDerivBack" class="fc-deriv-block hidden"></div>
 
             <div class="rate-row">
               <button class="rate-btn lv-1-btn" type="button" data-rate="1">苦手</button>
