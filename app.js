@@ -152,6 +152,7 @@ let vocabMin = 1;
 let vocabMax = 100;
 let vocabSelectedLevels = new Set(); // 空の場合は「すべて」、それ以外は "0","1","2","3" の複数選択
 let vocabContentType = "main"; // "main" | "deriv" | "antonym" | "idiom" | "all-deriv" | "example"
+let vocabSearchQuery = "";
 let vocabTypeFoldOpen = false;
 let vocabListenFoldOpen = false;
 let redEnActive = false;
@@ -1381,11 +1382,11 @@ function renderLevelFilterChips() {
   });
 }
 
-function getFilteredVocab() {
+function getFilteredVocab(ignoreRange = false) {
   const s = Math.min(vocabMin, vocabMax);
   const e = Math.max(vocabMin, vocabMax);
   return wordsData.filter((w) => {
-    if (w.no < s || w.no > e) return false;
+    if (!ignoreRange && (w.no < s || w.no > e)) return false;
     if (vocabSelectedLevels.size === 0) return true;
     const lv = String(Number(state.levels?.[w.no] || 0));
     return vocabSelectedLevels.has(lv);
@@ -1401,28 +1402,78 @@ function matchesDerivativeSubFilter(d, mode) {
   return true; // "all-deriv"
 }
 
+function wordMatchRank(text, q) {
+  const low = String(text || "").toLowerCase();
+  if (low === q) return 0;
+  if (low.startsWith(q)) return 1;
+  if (low.includes(q)) return 2;
+  return 3;
+}
+
 function buildVocabDisplayData() {
-  const baseWords = getFilteredVocab();
+  const q = vocabSearchQuery.trim().toLowerCase();
+  const hasSearch = q.length > 0;
+  // 検索キーワード入力時は範囲制限を外して全2,300語から検索可能にする
+  const baseWords = getFilteredVocab(hasSearch);
+
   if (vocabContentType === "main") {
-    return { mode: "main", unitLabel: "語", items: baseWords };
+    if (!hasSearch) {
+      return { mode: "main", unitLabel: "語", items: baseWords };
+    }
+    const matched = baseWords.filter((w) => {
+      if (w.word.toLowerCase().includes(q)) return true;
+      if ((w.rawMeaning || "").toLowerCase().includes(q)) return true;
+      if (String(w.no) === q) return true;
+      return (derivativesMap.get(w.no) || []).some((d) => d.word.toLowerCase().includes(q));
+    });
+    matched.sort((a, b) => {
+      const ra = wordMatchRank(a.word, q);
+      const rb = wordMatchRank(b.word, q);
+      return ra !== rb ? ra - rb : a.no - b.no;
+    });
+    return { mode: "main", unitLabel: "語", items: matched };
   }
+
   if (vocabContentType === "example") {
     const exItems = [];
     baseWords.forEach((w) => {
       (examplesMap.get(w.no) || []).forEach((ex, idx) => {
+        if (hasSearch) {
+          const hit =
+            ex.en.toLowerCase().includes(q) ||
+            (ex.ja || "").toLowerCase().includes(q) ||
+            w.word.toLowerCase().includes(q) ||
+            String(w.no) === q;
+          if (!hit) return;
+        }
         exItems.push({ key: `${w.no}_ex${idx}`, w, ex });
       });
     });
     return { mode: "example", unitLabel: "文", items: exItems };
   }
+
   const derivItems = [];
   baseWords.forEach((w) => {
     (derivativesMap.get(w.no) || []).forEach((d, idx) => {
-      if (matchesDerivativeSubFilter(d, vocabContentType)) {
-        derivItems.push({ key: `${w.no}_d${idx}`, w, d });
+      if (!matchesDerivativeSubFilter(d, vocabContentType)) return;
+      if (hasSearch) {
+        const hit =
+          d.word.toLowerCase().includes(q) ||
+          (d.meaning || "").toLowerCase().includes(q) ||
+          w.word.toLowerCase().includes(q) ||
+          String(w.no) === q;
+        if (!hit) return;
       }
+      derivItems.push({ key: `${w.no}_d${idx}`, w, d });
     });
   });
+  if (hasSearch) {
+    derivItems.sort((a, b) => {
+      const ra = wordMatchRank(a.d.word, q);
+      const rb = wordMatchRank(b.d.word, q);
+      return ra !== rb ? ra - rb : a.w.no - b.w.no;
+    });
+  }
   return { mode: "deriv-group", unitLabel: "件", items: derivItems };
 }
 
@@ -1454,10 +1505,25 @@ function updateVocabFoldUi() {
   const typeBtn = $("#btnToggleVocabType");
   const typeBody = $("#vocabTypeBody");
   const typeSum = $("#vocabTypeSummary");
+  const searchInp = $("#vocabSearchInput");
+  const clearBtn = $("#btnClearVocabSearch");
+
   if (typeBox) typeBox.classList.toggle("open", vocabTypeFoldOpen);
   if (typeBtn) typeBtn.setAttribute("aria-expanded", String(vocabTypeFoldOpen));
   if (typeBody) typeBody.classList.toggle("hidden", !vocabTypeFoldOpen);
-  if (typeSum) typeSum.textContent = VOCAB_TYPE_LABELS[vocabContentType] || "見出し語";
+
+  const baseLabel = VOCAB_TYPE_LABELS[vocabContentType] || "見出し語";
+  const trimmedQ = vocabSearchQuery.trim();
+  if (typeSum) {
+    const shortQ = trimmedQ.length > 8 ? `${trimmedQ.slice(0, 8)}…` : trimmedQ;
+    typeSum.textContent = trimmedQ ? `${baseLabel}・${shortQ}` : baseLabel;
+  }
+  if (searchInp && document.activeElement !== searchInp && searchInp.value !== vocabSearchQuery) {
+    searchInp.value = vocabSearchQuery;
+  }
+  if (clearBtn) {
+    clearBtn.classList.toggle("hidden", !trimmedQ);
+  }
 
   $$("#vocabTypeChips .vtype-chip").forEach((chip) => {
     chip.classList.toggle("active", chip.dataset.vtype === vocabContentType);
@@ -4292,6 +4358,21 @@ function bindEvents() {
   $("#btnToggleVocabType")?.addEventListener("click", () => {
     vocabTypeFoldOpen = !vocabTypeFoldOpen;
     updateVocabFoldUi();
+  });
+  $("#vocabSearchInput")?.addEventListener("input", (e) => {
+    vocabSearchQuery = e.target.value || "";
+    updateVocabFoldUi();
+    const display = buildVocabDisplayData();
+    const badge = $("#vocabCountBadge");
+    if (badge) badge.textContent = `${display.items.length}${display.unitLabel}`;
+    renderVocabList(display);
+    updateRedSheetClasses();
+  });
+  $("#btnClearVocabSearch")?.addEventListener("click", () => {
+    vocabSearchQuery = "";
+    const inp = $("#vocabSearchInput");
+    if (inp) inp.value = "";
+    renderVocabView();
   });
   $$("#vocabTypeChips .vtype-chip").forEach((chip) => {
     chip.addEventListener("click", () => {

@@ -786,6 +786,36 @@ html, body {
   padding-top: 10px;
 }
 
+.vocab-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.vocab-search-input {
+  padding-right: 34px;
+  font-size: 0.86rem;
+}
+
+.vocab-search-clear {
+  position: absolute;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: var(--chip-bg);
+  color: var(--text-sub);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
 .vocab-type-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

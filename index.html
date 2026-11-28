@@ -328,14 +328,14 @@
           <button class="level-chip" type="button" data-level="3">定着</button>
         </div>
 
-        <!-- 折りたたみ①：種類・派生語などの絞り込み（リスニングの上） -->
+        <!-- 折りたたみ①：絞り込み（単語検索・派生語など・リスニングの上） -->
         <div id="vocabTypeFold" class="vocab-fold-box">
           <button id="btnToggleVocabType" class="vocab-fold-head" type="button" aria-expanded="false">
             <span class="vocab-fold-title">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
               </svg>
-              <span>種類で絞り込み</span>
+              <span>絞り込み</span>
             </span>
             <span class="vocab-fold-right">
               <span id="vocabTypeSummary" class="range-pill">見出し語</span>
@@ -345,7 +345,19 @@
             </span>
           </button>
           <div id="vocabTypeBody" class="vocab-fold-body hidden">
-            <div id="vocabTypeChips" class="vocab-type-grid" role="group" aria-label="単語種類の絞り込み">
+            <div class="vocab-search-wrap">
+              <input
+                type="text"
+                id="vocabSearchInput"
+                class="text-input vocab-search-input"
+                placeholder="単語名・意味で検索（全範囲）"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+              />
+              <button id="btnClearVocabSearch" class="vocab-search-clear hidden" type="button" aria-label="検索をクリア">×</button>
+            </div>
+            <div id="vocabTypeChips" class="vocab-type-grid" role="group" aria-label="絞り込みの種類">
               <button class="vtype-chip active" type="button" data-vtype="main">見出し語</button>
               <button class="vtype-chip" type="button" data-vtype="deriv">派生語</button>
               <button class="vtype-chip" type="button" data-vtype="antonym">対義語・類義語</button>
