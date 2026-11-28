@@ -1584,7 +1584,7 @@ function renderVocabList(display = buildVocabDisplayData()) {
   }
 
   const levelNames = ["未学習", "苦手", "うろ覚え", "定着"];
-  const speakerIcon = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+  const speakerIcon = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
 
   if (mode === "deriv-group") {
     container.innerHTML = items.map(({ key, w, d }) => {
@@ -1621,7 +1621,7 @@ function renderVocabList(display = buildVocabDisplayData()) {
                 <span>${escapeHtml(formatDerivOriginLabel(d, w))}</span>
                 <span>現在: ${levelNames[lv]}</span>
               </div>
-              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(speakTarget)}">${speakerIcon}<span>発音</span></button>
+              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(speakTarget)}" aria-label="発音">${speakerIcon}</button>
             </div>
             <div class="listen-rate-row" style="margin-top:10px;">
               <button type="button" class="rate-btn lv-1-btn${lv === 1 ? " selected" : ""}" data-vocab-rate="1" data-no="${w.no}">苦手</button>
@@ -1665,7 +1665,7 @@ function renderVocabList(display = buildVocabDisplayData()) {
               <div class="acc-meta">
                 <span>見出し語: ${escapeHtml(w.word)}（${escapeHtml(w.meanings[0] || "")}）</span>
               </div>
-              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(speakSentence)}">${speakerIcon}<span>発音</span></button>
+              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(speakSentence)}" aria-label="発音">${speakerIcon}</button>
             </div>
             <div class="listen-rate-row" style="margin-top:10px;">
               <button type="button" class="rate-btn lv-1-btn${lv === 1 ? " selected" : ""}" data-vocab-rate="1" data-no="${w.no}">苦手</button>
@@ -1743,7 +1743,7 @@ function renderVocabList(display = buildVocabDisplayData()) {
                 ${w.phonetic ? `<span>${escapeHtml(w.phonetic)}</span>` : ""}
                 <span>現在: ${levelNames[lv]}</span>
               </div>
-              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(w.word)}">${speakerIcon}<span>発音</span></button>
+              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(w.word)}" aria-label="発音">${speakerIcon}</button>
             </div>
             ${derivativesHtml}
             ${examplesHtml}
@@ -3027,7 +3027,7 @@ function renderPaperSheet() {
       <div class="paper-item-row" data-paper-no="${item.no}">
         <div class="paper-q-head">
           <span class="paper-q-num">問 ${idx + 1}　No.${item.no}${qData.pos ? ` [${escapeHtml(qData.pos)}]` : ""}</span>
-          ${paperGradingMode ? `<button type="button" class="audio-pill" data-paper-speak="${escapeHtml(qData.speakWord)}" style="padding:3px 8px;font-size:0.7rem;">発音</button>` : ""}
+          ${paperGradingMode ? `<button type="button" class="audio-pill" data-paper-speak="${escapeHtml(qData.speakWord)}" aria-label="発音"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg></button>` : ""}
         </div>
         <div class="paper-q-prompt">${qData.promptHtml}</div>
         ${!paperGradingMode
