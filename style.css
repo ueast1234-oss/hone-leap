@@ -728,14 +728,96 @@ html, body {
 .level-chip[data-level="2"].active { background: var(--lv-2); border-color: var(--lv-2); }
 .level-chip[data-level="3"].active { background: var(--lv-3); border-color: var(--lv-3); }
 
-.vocab-listen-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 11px 12px;
+.vocab-fold-box {
   border-radius: var(--radius-md);
   background: var(--chip-bg);
   border: 1px solid var(--glass-border);
+  overflow: hidden;
+}
+
+.vocab-fold-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.vocab-fold-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.vocab-fold-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vocab-fold-right .range-pill {
+  background: var(--input-bg);
+}
+
+.vocab-fold-chevron {
+  color: var(--text-sub);
+  transition: transform 0.18s ease;
+}
+
+.vocab-fold-box.open .vocab-fold-chevron {
+  transform: rotate(180deg);
+}
+
+.vocab-fold-body {
+  padding: 2px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  padding-top: 10px;
+}
+
+.vocab-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.vtype-chip {
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.vtype-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 800;
+}
+
+.vocab-parent-hint {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--text-sub);
 }
 
 .vocab-listen-opts {
@@ -753,7 +835,7 @@ html, body {
   font-weight: 700;
 }
 
-.vocab-listen-bar .primary-btn {
+.vocab-fold-body .primary-btn {
   width: 100%;
   padding: 9px 12px;
   font-size: 0.86rem;

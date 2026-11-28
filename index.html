@@ -328,28 +328,74 @@
           <button class="level-chip" type="button" data-level="3">定着</button>
         </div>
 
-        <div class="vocab-listen-bar">
-          <div class="vocab-listen-opts">
-            <label class="filter-label" for="vocabListenSpeed">速度</label>
-            <select id="vocabListenSpeed" class="select-input">
-              <option value="0.8">0.8x</option>
-              <option value="1.0" selected>1.0x</option>
-              <option value="1.2">1.2x</option>
-            </select>
-
-            <label class="filter-label" for="vocabListenInterval">間隔</label>
-            <select id="vocabListenInterval" class="select-input">
-              <option value="900">0.9秒</option>
-              <option value="1400" selected>1.4秒</option>
-              <option value="2000">2.0秒</option>
-            </select>
-          </div>
-          <button id="btnStartVocabListen" class="primary-btn" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-            <span>リスニング再生</span>
+        <!-- 折りたたみ①：種類・派生語などの絞り込み（リスニングの上） -->
+        <div id="vocabTypeFold" class="vocab-fold-box">
+          <button id="btnToggleVocabType" class="vocab-fold-head" type="button" aria-expanded="false">
+            <span class="vocab-fold-title">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+              <span>種類で絞り込み</span>
+            </span>
+            <span class="vocab-fold-right">
+              <span id="vocabTypeSummary" class="range-pill">見出し語</span>
+              <svg class="vocab-fold-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </span>
           </button>
+          <div id="vocabTypeBody" class="vocab-fold-body hidden">
+            <div id="vocabTypeChips" class="vocab-type-grid" role="group" aria-label="単語種類の絞り込み">
+              <button class="vtype-chip active" type="button" data-vtype="main">見出し語</button>
+              <button class="vtype-chip" type="button" data-vtype="deriv">派生語</button>
+              <button class="vtype-chip" type="button" data-vtype="antonym">対義語・類義語</button>
+              <button class="vtype-chip" type="button" data-vtype="idiom">熟語・関連語</button>
+              <button class="vtype-chip" type="button" data-vtype="all-deriv">派生・関連すべて</button>
+              <button class="vtype-chip" type="button" data-vtype="example">例文</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 折りたたみ②：リスニング設定＆再生 -->
+        <div id="vocabListenFold" class="vocab-fold-box">
+          <button id="btnToggleVocabListen" class="vocab-fold-head" type="button" aria-expanded="false">
+            <span class="vocab-fold-title">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+              </svg>
+              <span>リスニング</span>
+            </span>
+            <span class="vocab-fold-right">
+              <span id="vocabListenSummary" class="range-pill">1.0x ・ 1.4秒</span>
+              <svg class="vocab-fold-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </span>
+          </button>
+          <div id="vocabListenBody" class="vocab-fold-body hidden">
+            <div class="vocab-listen-opts">
+              <label class="filter-label" for="vocabListenSpeed">速度</label>
+              <select id="vocabListenSpeed" class="select-input">
+                <option value="0.8">0.8x</option>
+                <option value="1.0" selected>1.0x</option>
+                <option value="1.2">1.2x</option>
+              </select>
+
+              <label class="filter-label" for="vocabListenInterval">間隔</label>
+              <select id="vocabListenInterval" class="select-input">
+                <option value="900">0.9秒</option>
+                <option value="1400" selected>1.4秒</option>
+                <option value="2000">2.0秒</option>
+              </select>
+            </div>
+            <button id="btnStartVocabListen" class="primary-btn full-btn" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>リスニング再生</span>
+            </button>
+          </div>
         </div>
       </div>
 

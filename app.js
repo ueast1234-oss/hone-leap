@@ -151,8 +151,20 @@ let calSelectedDate = "";
 let vocabMin = 1;
 let vocabMax = 100;
 let vocabSelectedLevels = new Set(); // 空の場合は「すべて」、それ以外は "0","1","2","3" の複数選択
+let vocabContentType = "main"; // "main" | "deriv" | "antonym" | "idiom" | "all-deriv" | "example"
+let vocabTypeFoldOpen = false;
+let vocabListenFoldOpen = false;
 let redEnActive = false;
 let redJaActive = false;
+
+const VOCAB_TYPE_LABELS = {
+  "main": "見出し語",
+  "deriv": "派生語",
+  "antonym": "対義語・類義語",
+  "idiom": "熟語・関連語",
+  "all-deriv": "派生・関連すべて",
+  "example": "例文"
+};
 
 // 学習セットアップ状態
 let currentStudyMode = "flashcard"; // "flashcard" | "quiz" | "paper" | "listen"
@@ -1380,6 +1392,89 @@ function getFilteredVocab() {
   });
 }
 
+function matchesDerivativeSubFilter(d, mode) {
+  if (!d) return false;
+  const p = d.pos || "";
+  if (mode === "antonym") return p === "反" || p === "類";
+  if (mode === "idiom") return p === "参";
+  if (mode === "deriv") return p !== "反" && p !== "類" && p !== "参";
+  return true; // "all-deriv"
+}
+
+function buildVocabDisplayData() {
+  const baseWords = getFilteredVocab();
+  if (vocabContentType === "main") {
+    return { mode: "main", unitLabel: "語", items: baseWords };
+  }
+  if (vocabContentType === "example") {
+    const exItems = [];
+    baseWords.forEach((w) => {
+      (examplesMap.get(w.no) || []).forEach((ex, idx) => {
+        exItems.push({ key: `${w.no}_ex${idx}`, w, ex });
+      });
+    });
+    return { mode: "example", unitLabel: "文", items: exItems };
+  }
+  const derivItems = [];
+  baseWords.forEach((w) => {
+    (derivativesMap.get(w.no) || []).forEach((d, idx) => {
+      if (matchesDerivativeSubFilter(d, vocabContentType)) {
+        derivItems.push({ key: `${w.no}_d${idx}`, w, d });
+      }
+    });
+  });
+  return { mode: "deriv-group", unitLabel: "件", items: derivItems };
+}
+
+function buildVocabListenQueue() {
+  const display = buildVocabDisplayData();
+  if (display.mode === "main") {
+    return display.items;
+  }
+  if (display.mode === "example") {
+    return display.items.map(({ w, ex }) => ({
+      no: w.no,
+      pos: w.pos || "",
+      word: buildExampleSpeechText(ex.rawEn, false),
+      phonetic: `見出し語: ${w.word}`,
+      meanings: [ex.ja || w.meanings.join(" ／ ")]
+    }));
+  }
+  return display.items.map(({ w, d }) => ({
+    no: w.no,
+    pos: d.pos || "",
+    word: cleanDerivativeSpeechWord(d.word) || d.word,
+    phonetic: formatDerivOriginLabel(d, w),
+    meanings: [d.meaning || w.meanings.join(" ／ ")]
+  }));
+}
+
+function updateVocabFoldUi() {
+  const typeBox = $("#vocabTypeFold");
+  const typeBtn = $("#btnToggleVocabType");
+  const typeBody = $("#vocabTypeBody");
+  const typeSum = $("#vocabTypeSummary");
+  if (typeBox) typeBox.classList.toggle("open", vocabTypeFoldOpen);
+  if (typeBtn) typeBtn.setAttribute("aria-expanded", String(vocabTypeFoldOpen));
+  if (typeBody) typeBody.classList.toggle("hidden", !vocabTypeFoldOpen);
+  if (typeSum) typeSum.textContent = VOCAB_TYPE_LABELS[vocabContentType] || "見出し語";
+
+  $$("#vocabTypeChips .vtype-chip").forEach((chip) => {
+    chip.classList.toggle("active", chip.dataset.vtype === vocabContentType);
+  });
+
+  const listenBox = $("#vocabListenFold");
+  const listenBtn = $("#btnToggleVocabListen");
+  const listenBody = $("#vocabListenBody");
+  const listenSum = $("#vocabListenSummary");
+  const spd = Number($("#vocabListenSpeed")?.value || 1.0).toFixed(1);
+  const intv = (Number($("#vocabListenInterval")?.value || 1400) / 1000).toFixed(1);
+  if (listenBox) listenBox.classList.toggle("open", vocabListenFoldOpen);
+  if (listenBtn) listenBtn.setAttribute("aria-expanded", String(vocabListenFoldOpen));
+  if (listenBody) listenBody.classList.toggle("hidden", !vocabListenFoldOpen);
+  if (listenSum) listenSum.textContent = `${spd}x ・ ${intv}秒`;
+}
+
 function renderVocabView() {
   const minInp = $("#vocabMin");
   const maxInp = $("#vocabMax");
@@ -1387,112 +1482,221 @@ function renderVocabView() {
   if (maxInp) maxInp.value = vocabMax;
 
   renderLevelFilterChips();
-  const list = getFilteredVocab();
+  updateVocabFoldUi();
+  const display = buildVocabDisplayData();
 
   const badge = $("#vocabCountBadge");
-  if (badge) badge.textContent = `${list.length}語`;
+  if (badge) badge.textContent = `${display.items.length}${display.unitLabel}`;
 
-  renderVocabList(list);
+  renderVocabList(display);
   updateRedSheetClasses();
 }
 
-function renderVocabList(list = getFilteredVocab()) {
+function renderVocabList(display = buildVocabDisplayData()) {
   const container = $("#vocabList");
   if (!container) return;
 
-  if (!list.length) {
-    container.innerHTML = `<div class="glass-card"><p class="sub-label" style="margin:0;text-align:center;">該当する単語がありません（範囲や上のカラーチップを切り替えてください）。</p></div>`;
+  const { mode, items } = display;
+
+  if (!items.length) {
+    if (mode === "example") {
+      container.innerHTML = `
+        <div class="glass-card" style="text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;">
+          <p class="sub-label" style="margin:0;">この範囲に例文データがありません（No.296〜1000 に収録されています）。</p>
+          <button type="button" id="btnJumpVocabExRange" class="sub-btn">No.296〜400 を表示する</button>
+        </div>
+      `;
+      $("#btnJumpVocabExRange")?.addEventListener("click", () => {
+        vocabMin = 296;
+        vocabMax = 400;
+        renderVocabView();
+      });
+    } else {
+      container.innerHTML = `<div class="glass-card"><p class="sub-label" style="margin:0;text-align:center;">該当する項目がありません（範囲や絞り込み条件を切り替えてください）。</p></div>`;
+    }
     return;
   }
 
   const levelNames = ["未学習", "苦手", "うろ覚え", "定着"];
   const speakerIcon = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
 
-  container.innerHTML = list.map((w) => {
-    const lv = Number(state.levels?.[w.no] || 0);
-    const exList = examplesMap.get(w.no) || [];
-    const derivList = derivativesMap.get(w.no) || [];
-    const meaningsHtml = w.meanings
-      .map((m) => `<span class="vocab-meaning-line">${escapeHtml(m)}</span>`)
-      .join("");
-
-    const examplesHtml = exList.length
-      ? `
-        <div class="acc-block">
-          <span class="acc-label">フレーズ・例文</span>
-          ${exList.map((ex) => `
-            <p class="acc-text">${formatExampleHighlightedHtml(ex.rawEn)}</p>
-            ${ex.ja ? `<p class="acc-text sub-label" style="margin-bottom:6px;">${escapeHtml(ex.ja)}</p>` : ""}
-          `).join("")}
-        </div>
-      `
-      : "";
-
-    const derivativesHtml = derivList.length
-      ? `
-        <div class="acc-block">
-          <span class="acc-label">派生語・関連語</span>
-          <div class="deriv-list">
-            ${derivList.map((d) => `
-              <div class="deriv-row">
-                ${d.pos ? `<span class="pos-badge">${escapeHtml(d.pos)}</span>` : ""}
-                <span class="deriv-word">${escapeHtml(d.word)}</span>
-                ${d.meaning ? `<span class="deriv-meaning">${escapeHtml(d.meaning)}</span>` : ""}
+  if (mode === "deriv-group") {
+    container.innerHTML = items.map(({ key, w, d }) => {
+      const lv = Number(state.levels?.[w.no] || 0);
+      const speakTarget = cleanDerivativeSpeechWord(d.word) || w.word;
+      return `
+        <article class="vocab-item" data-item-key="${escapeHtml(key)}" data-no="${w.no}">
+          <div class="vocab-row">
+            <button type="button" class="vocab-dot-btn" data-cycle-no="${w.no}" aria-label="習熟度を変更（現在: ${levelNames[lv]}）">
+              <span class="dot lv-${lv}"></span>
+            </button>
+            <div class="vocab-left">
+              <div class="vocab-no-row">
+                <span class="vocab-no">No.${w.no}</span>
+                ${d.pos ? `<span class="pos-badge vocab-pos-above">${escapeHtml(d.pos)}</span>` : ""}
+                <span class="vocab-parent-hint">${escapeHtml(w.word)}</span>
               </div>
+              <span class="vocab-word">${escapeHtml(d.word)}</span>
+            </div>
+            <div class="vocab-right">
+              <div class="vocab-meanings-stack">
+                <span class="vocab-meaning-line">${escapeHtml(d.meaning || "—")}</span>
+              </div>
+            </div>
+            <button type="button" class="vocab-detail-btn" data-toggle-key="${escapeHtml(key)}" aria-label="詳細を開く">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="vocab-accordion">
+            <div class="acc-top">
+              <div class="acc-meta">
+                <span>${escapeHtml(formatDerivOriginLabel(d, w))}</span>
+                <span>現在: ${levelNames[lv]}</span>
+              </div>
+              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(speakTarget)}">${speakerIcon}<span>発音</span></button>
+            </div>
+            <div class="listen-rate-row" style="margin-top:10px;">
+              <button type="button" class="rate-btn lv-1-btn${lv === 1 ? " selected" : ""}" data-vocab-rate="1" data-no="${w.no}">苦手</button>
+              <button type="button" class="rate-btn lv-2-btn${lv === 2 ? " selected" : ""}" data-vocab-rate="2" data-no="${w.no}">うろ覚え</button>
+              <button type="button" class="rate-btn lv-3-btn${lv === 3 ? " selected" : ""}" data-vocab-rate="3" data-no="${w.no}">定着</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join("");
+  } else if (mode === "example") {
+    container.innerHTML = items.map(({ key, w, ex }) => {
+      const lv = Number(state.levels?.[w.no] || 0);
+      const speakSentence = buildExampleSpeechText(ex.rawEn, false);
+      return `
+        <article class="vocab-item" data-item-key="${escapeHtml(key)}" data-no="${w.no}">
+          <div class="vocab-row">
+            <button type="button" class="vocab-dot-btn" data-cycle-no="${w.no}" aria-label="習熟度を変更（現在: ${levelNames[lv]}）">
+              <span class="dot lv-${lv}"></span>
+            </button>
+            <div class="vocab-left">
+              <div class="vocab-no-row">
+                <span class="vocab-no">No.${w.no}</span>
+                <span class="vocab-parent-hint">${escapeHtml(w.word)}</span>
+              </div>
+              <span class="vocab-word" style="font-size:0.86rem;font-weight:700;line-height:1.38;">${formatExampleHighlightedHtml(ex.rawEn)}</span>
+            </div>
+            <div class="vocab-right">
+              <div class="vocab-meanings-stack">
+                <span class="vocab-meaning-line">${escapeHtml(ex.ja || "—")}</span>
+              </div>
+            </div>
+            <button type="button" class="vocab-detail-btn" data-toggle-key="${escapeHtml(key)}" aria-label="詳細を開く">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="vocab-accordion">
+            <div class="acc-top">
+              <div class="acc-meta">
+                <span>見出し語: ${escapeHtml(w.word)}（${escapeHtml(w.meanings[0] || "")}）</span>
+              </div>
+              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(speakSentence)}">${speakerIcon}<span>発音</span></button>
+            </div>
+            <div class="listen-rate-row" style="margin-top:10px;">
+              <button type="button" class="rate-btn lv-1-btn${lv === 1 ? " selected" : ""}" data-vocab-rate="1" data-no="${w.no}">苦手</button>
+              <button type="button" class="rate-btn lv-2-btn${lv === 2 ? " selected" : ""}" data-vocab-rate="2" data-no="${w.no}">うろ覚え</button>
+              <button type="button" class="rate-btn lv-3-btn${lv === 3 ? " selected" : ""}" data-vocab-rate="3" data-no="${w.no}">定着</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join("");
+  } else {
+    container.innerHTML = items.map((w) => {
+      const lv = Number(state.levels?.[w.no] || 0);
+      const exList = examplesMap.get(w.no) || [];
+      const derivList = derivativesMap.get(w.no) || [];
+      const meaningsHtml = w.meanings
+        .map((m) => `<span class="vocab-meaning-line">${escapeHtml(m)}</span>`)
+        .join("");
+
+      const examplesHtml = exList.length
+        ? `
+          <div class="acc-block">
+            <span class="acc-label">フレーズ・例文</span>
+            ${exList.map((ex) => `
+              <p class="acc-text">${formatExampleHighlightedHtml(ex.rawEn)}</p>
+              ${ex.ja ? `<p class="acc-text sub-label" style="margin-bottom:6px;">${escapeHtml(ex.ja)}</p>` : ""}
             `).join("")}
           </div>
-        </div>
-      `
-      : "";
+        `
+        : "";
 
-    return `
-      <article class="vocab-item" data-no="${w.no}">
-        <div class="vocab-row">
-          <button type="button" class="vocab-dot-btn" data-cycle-no="${w.no}" aria-label="習熟度を変更（現在: ${levelNames[lv]}）" title="タップで習熟度切替（現在: ${levelNames[lv]}）">
-            <span class="dot lv-${lv}"></span>
-          </button>
-          <div class="vocab-left">
-            <div class="vocab-no-row">
-              <span class="vocab-no">No.${w.no}</span>
-              ${w.pos ? `<span class="pos-badge vocab-pos-above">${escapeHtml(w.pos)}</span>` : ""}
+      const derivativesHtml = derivList.length
+        ? `
+          <div class="acc-block">
+            <span class="acc-label">派生語・関連語</span>
+            <div class="deriv-list">
+              ${derivList.map((d) => `
+                <div class="deriv-row">
+                  ${d.pos ? `<span class="pos-badge">${escapeHtml(d.pos)}</span>` : ""}
+                  <span class="deriv-word">${escapeHtml(d.word)}</span>
+                  ${d.meaning ? `<span class="deriv-meaning">${escapeHtml(d.meaning)}</span>` : ""}
+                </div>
+              `).join("")}
             </div>
-            <span class="vocab-word">${escapeHtml(w.word)}</span>
           </div>
-          <div class="vocab-right">
-            <div class="vocab-meanings-stack">${meaningsHtml}</div>
-          </div>
-          <button type="button" class="vocab-detail-btn" data-toggle-no="${w.no}" aria-label="詳細を開く">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </button>
-        </div>
-        <div class="vocab-accordion">
-          <div class="acc-top">
-            <div class="acc-meta">
-              ${w.unit ? `<span>${escapeHtml(w.unit)}</span>` : ""}
-              ${w.phonetic ? `<span>${escapeHtml(w.phonetic)}</span>` : ""}
-              <span>現在: ${levelNames[lv]}</span>
+        `
+        : "";
+
+      return `
+        <article class="vocab-item" data-item-key="${w.no}" data-no="${w.no}">
+          <div class="vocab-row">
+            <button type="button" class="vocab-dot-btn" data-cycle-no="${w.no}" aria-label="習熟度を変更（現在: ${levelNames[lv]}）" title="タップで習熟度切替（現在: ${levelNames[lv]}）">
+              <span class="dot lv-${lv}"></span>
+            </button>
+            <div class="vocab-left">
+              <div class="vocab-no-row">
+                <span class="vocab-no">No.${w.no}</span>
+                ${w.pos ? `<span class="pos-badge vocab-pos-above">${escapeHtml(w.pos)}</span>` : ""}
+              </div>
+              <span class="vocab-word">${escapeHtml(w.word)}</span>
             </div>
-            <button type="button" class="audio-pill" data-speak-word="${escapeHtml(w.word)}">${speakerIcon}<span>発音</span></button>
-          </div>
-          ${derivativesHtml}
-          ${examplesHtml}
-          ${w.note ? `
-            <div class="acc-block">
-              <span class="acc-label">解説・メモ</span>
-              <p class="acc-text">${escapeHtml(w.note)}</p>
+            <div class="vocab-right">
+              <div class="vocab-meanings-stack">${meaningsHtml}</div>
             </div>
-          ` : ""}
-          <div class="listen-rate-row" style="margin-top:10px;">
-            <button type="button" class="rate-btn lv-1-btn${lv === 1 ? " selected" : ""}" data-vocab-rate="1" data-no="${w.no}">苦手</button>
-            <button type="button" class="rate-btn lv-2-btn${lv === 2 ? " selected" : ""}" data-vocab-rate="2" data-no="${w.no}">うろ覚え</button>
-            <button type="button" class="rate-btn lv-3-btn${lv === 3 ? " selected" : ""}" data-vocab-rate="3" data-no="${w.no}">定着</button>
+            <button type="button" class="vocab-detail-btn" data-toggle-key="${w.no}" data-toggle-no="${w.no}" aria-label="詳細を開く">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
           </div>
-        </div>
-      </article>
-    `;
-  }).join("");
+          <div class="vocab-accordion">
+            <div class="acc-top">
+              <div class="acc-meta">
+                ${w.unit ? `<span>${escapeHtml(w.unit)}</span>` : ""}
+                ${w.phonetic ? `<span>${escapeHtml(w.phonetic)}</span>` : ""}
+                <span>現在: ${levelNames[lv]}</span>
+              </div>
+              <button type="button" class="audio-pill" data-speak-word="${escapeHtml(w.word)}">${speakerIcon}<span>発音</span></button>
+            </div>
+            ${derivativesHtml}
+            ${examplesHtml}
+            ${w.note ? `
+              <div class="acc-block">
+                <span class="acc-label">解説・メモ</span>
+                <p class="acc-text">${escapeHtml(w.note)}</p>
+              </div>
+            ` : ""}
+            <div class="listen-rate-row" style="margin-top:10px;">
+              <button type="button" class="rate-btn lv-1-btn${lv === 1 ? " selected" : ""}" data-vocab-rate="1" data-no="${w.no}">苦手</button>
+              <button type="button" class="rate-btn lv-2-btn${lv === 2 ? " selected" : ""}" data-vocab-rate="2" data-no="${w.no}">うろ覚え</button>
+              <button type="button" class="rate-btn lv-3-btn${lv === 3 ? " selected" : ""}" data-vocab-rate="3" data-no="${w.no}">定着</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
 
   container.querySelectorAll(".vocab-dot-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
@@ -1518,7 +1722,8 @@ function renderVocabList(list = getFilteredVocab()) {
   container.querySelectorAll(".vocab-detail-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const card = container.querySelector(`.vocab-item[data-no="${btn.dataset.toggleNo}"]`);
+      const key = btn.dataset.toggleKey || btn.dataset.toggleNo;
+      const card = container.querySelector(`.vocab-item[data-item-key="${key}"]`);
       if (card) card.classList.toggle("open");
     });
   });
@@ -4074,7 +4279,7 @@ function bindEvents() {
     renderStudyCalendar();
   });
 
-  // 単語帳画面
+  // 単語帳画面（範囲・折りたたみ式種類フィルタ・折りたたみ式リスニング）
   const onVocabRangeChange = () => {
     const maxAllowed = wordsData.length || 2300;
     vocabMin = Math.max(1, Math.min(maxAllowed, Number($("#vocabMin")?.value || 1)));
@@ -4084,10 +4289,28 @@ function bindEvents() {
   $("#vocabMin")?.addEventListener("change", onVocabRangeChange);
   $("#vocabMax")?.addEventListener("change", onVocabRangeChange);
 
+  $("#btnToggleVocabType")?.addEventListener("click", () => {
+    vocabTypeFoldOpen = !vocabTypeFoldOpen;
+    updateVocabFoldUi();
+  });
+  $$("#vocabTypeChips .vtype-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      vocabContentType = chip.dataset.vtype || "main";
+      renderVocabView();
+    });
+  });
+
+  $("#btnToggleVocabListen")?.addEventListener("click", () => {
+    vocabListenFoldOpen = !vocabListenFoldOpen;
+    updateVocabFoldUi();
+  });
+  $("#vocabListenSpeed")?.addEventListener("change", updateVocabFoldUi);
+  $("#vocabListenInterval")?.addEventListener("change", updateVocabFoldUi);
+
   $("#btnStartVocabListen")?.addEventListener("click", () => {
     const speed = Number($("#vocabListenSpeed")?.value || 1.0);
     const intervalMs = Number($("#vocabListenInterval")?.value || 1400);
-    startListenOverlay(getFilteredVocab(), speed, intervalMs, true);
+    startListenOverlay(buildVocabListenQueue(), speed, intervalMs, true);
   });
 
   // 赤シート切替バー
